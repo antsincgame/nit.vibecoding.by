@@ -48,7 +48,8 @@
 
 /* Neon Wave Animations */
 @keyframes goldGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow:
       0 0 12px rgba(255, 215, 0, 0.2),
       0 0 24px rgba(255, 215, 0, 0.1);

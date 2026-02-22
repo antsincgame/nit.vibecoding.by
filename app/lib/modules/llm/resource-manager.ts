@@ -162,6 +162,7 @@ class ResourceManager {
   async prepareOllama(baseUrl: string, keepModel: string): Promise<void> {
     if (this._activeProvider === 'Ollama' && this._activeModel === keepModel) {
       logger.debug(`[SKIP] Ollama/${keepModel} already active`);
+
       return;
     }
 
@@ -181,6 +182,8 @@ class ResourceManager {
 
     await this._unloadAllLMStudio(this._getLMStudioUrl());
 
+    let alreadyLoaded = false;
+
     try {
       const psResp = await fetch(`${baseUrl}/api/ps`);
       const psData = (await psResp.json()) as { models: OllamaPsModel[] };
@@ -189,6 +192,7 @@ class ResourceManager {
 
       for (const loaded of psData.models || []) {
         if (loaded.name === keepModel) {
+          alreadyLoaded = true;
           logger.info(`[KEEP] Ollama: ${loaded.name} already loaded`);
           continue;
         }
@@ -208,6 +212,25 @@ class ResourceManager {
       }
     } catch (err) {
       logger.warn(`[ERROR] Ollama cleanup: ${String(err)}`);
+    }
+
+    if (!alreadyLoaded) {
+      try {
+        logger.info(`[PRELOAD] Ollama: warming up ${keepModel}...`);
+
+        const warmup = await fetch(`${baseUrl}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: keepModel, prompt: 'Hi', options: { num_predict: 1 } }),
+          signal: AbortSignal.timeout(90_000),
+        });
+
+        if (warmup.ok) {
+          logger.info(`[PRELOAD] Ollama: ${keepModel} loaded into memory`);
+        }
+      } catch (err) {
+        logger.warn(`[PRELOAD] Ollama: warmup failed (${String(err)}), will load on first request`);
+      }
     }
 
     this._activeProvider = 'Ollama';

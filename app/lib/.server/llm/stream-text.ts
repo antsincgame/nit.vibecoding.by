@@ -99,11 +99,15 @@ export async function streamText(props: {
     modelDetails = modelsList.find((m) => m.name === currentModel);
 
     if (!modelDetails) {
-      // Fallback to first model
       logger.warn(
-        `MODEL [${currentModel}] not found in provider [${provider.name}]. Falling back to first model. ${modelsList[0].name}`,
+        `MODEL [${currentModel}] not found in provider [${provider.name}] cache. Using requested model directly.`,
       );
-      modelDetails = modelsList[0];
+      modelDetails = {
+        name: currentModel,
+        label: currentModel,
+        provider: provider.name,
+        maxTokenAllowed: 8192,
+      };
     }
   }
 

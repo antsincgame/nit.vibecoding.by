@@ -34,16 +34,9 @@
   height: 120%;
   top: -40%;
   left: -10%;
-  background: radial-gradient(
-    ellipse at 30% 20%,
-    rgba(255, 215, 0, 0.08) 0%,
-    transparent 50%
-  ),
-  radial-gradient(
-    ellipse at 70% 80%,
-    rgba(0, 245, 255, 0.06) 0%,
-    transparent 50%
-  );
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 215, 0, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(0, 245, 255, 0.06) 0%, transparent 50%);
   animation: auraPulse 6s ease-in-out infinite;
 }
 
@@ -156,66 +149,133 @@
 }
 
 @keyframes auraPulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.05); opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
 }
 
 @keyframes float1 {
-  0%, 100% { transform: rotate(65deg) translate(0, 0); }
-  25% { transform: rotate(70deg) translate(30px, 20px); }
-  50% { transform: rotate(60deg) translate(-20px, 40px); }
-  75% { transform: rotate(68deg) translate(-40px, 10px); }
+  0%,
+  100% {
+    transform: rotate(65deg) translate(0, 0);
+  }
+  25% {
+    transform: rotate(70deg) translate(30px, 20px);
+  }
+  50% {
+    transform: rotate(60deg) translate(-20px, 40px);
+  }
+  75% {
+    transform: rotate(68deg) translate(-40px, 10px);
+  }
 }
 
 @keyframes float2 {
-  0%, 100% { transform: rotate(-30deg) scale(1); }
-  33% { transform: rotate(-25deg) scale(1.1); }
-  66% { transform: rotate(-35deg) scale(0.95); }
+  0%,
+  100% {
+    transform: rotate(-30deg) scale(1);
+  }
+  33% {
+    transform: rotate(-25deg) scale(1.1);
+  }
+  66% {
+    transform: rotate(-35deg) scale(0.95);
+  }
 }
 
 @keyframes float3 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  25% { transform: translate(40px, 20px) rotate(5deg); }
-  75% { transform: translate(-30px, 40px) rotate(-5deg); }
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(40px, 20px) rotate(5deg);
+  }
+  75% {
+    transform: translate(-30px, 40px) rotate(-5deg);
+  }
 }
 
 @keyframes float4 {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.15) rotate(10deg); }
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.15) rotate(10deg);
+  }
 }
 
 @keyframes float5 {
-  0%, 100% { transform: rotate(-45deg) translate(0, 0); }
-  33% { transform: rotate(-40deg) translate(25px, -20px); }
-  66% { transform: rotate(-50deg) translate(-25px, 20px); }
+  0%,
+  100% {
+    transform: rotate(-45deg) translate(0, 0);
+  }
+  33% {
+    transform: rotate(-40deg) translate(25px, -20px);
+  }
+  66% {
+    transform: rotate(-50deg) translate(-25px, 20px);
+  }
 }
 
 @keyframes float6 {
-  0%, 100% { transform: rotate(75deg) scale(1); filter: blur(75px); }
-  50% { transform: rotate(85deg) scale(1.1); filter: blur(65px); }
+  0%,
+  100% {
+    transform: rotate(75deg) scale(1);
+    filter: blur(75px);
+  }
+  50% {
+    transform: rotate(85deg) scale(1.1);
+    filter: blur(65px);
+  }
 }
 
 @keyframes float7 {
-  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.45; }
-  50% { transform: rotate(40deg) translate(-30px, 30px); opacity: 0.6; }
+  0%,
+  100% {
+    transform: rotate(45deg) translate(0, 0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: rotate(40deg) translate(-30px, 30px);
+    opacity: 0.6;
+  }
 }
 
 @keyframes float8 {
-  0%, 100% { transform: rotate(-60deg) scale(1); }
-  25% { transform: rotate(-55deg) scale(1.05); }
-  75% { transform: rotate(-65deg) scale(0.95); }
+  0%,
+  100% {
+    transform: rotate(-60deg) scale(1);
+  }
+  25% {
+    transform: rotate(-55deg) scale(1.05);
+  }
+  75% {
+    transform: rotate(-65deg) scale(0.95);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Floating gold particles */
 .particle {
   position: absolute;
   bottom: -10px;
-  background: #FFD700;
+  background: #ffd700;
   border-radius: 50%;
   opacity: 0;
   box-shadow: 0 0 6px rgba(255, 215, 0, 0.6);
@@ -224,8 +284,19 @@
 }
 
 @keyframes particleFloat {
-  0%, 100% { transform: translateY(0) scale(1); opacity: 0; }
-  8% { opacity: 0.7; }
-  85% { opacity: 0.7; }
-  100% { transform: translateY(-100vh) scale(0.4); opacity: 0; }
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-100vh) scale(0.4);
+    opacity: 0;
+  }
 }

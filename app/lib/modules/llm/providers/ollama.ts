@@ -148,12 +148,14 @@ export default class OllamaProvider extends BaseProvider {
 
     const desiredCtx = this.getDefaultNumCtx(serverEnv);
     const modelSize = this._modelSizeMap.get(model) || 0;
-    const numCtx = pickNumCtx(modelSize, desiredCtx);
 
-    logger.info(`Ollama: ${model} (${(modelSize / 1e9).toFixed(1)}GB) → num_ctx=${numCtx}`);
+    const isCustomModel = modelSize === 0;
+    const numCtx = isCustomModel ? undefined : pickNumCtx(modelSize, desiredCtx);
+
+    logger.info(`Ollama: ${model} (${(modelSize / 1e9).toFixed(1)}GB) → num_ctx=${numCtx ?? 'from-modelfile'}`);
 
     const ollamaInstance = ollama(model, {
-      numCtx,
+      ...(numCtx !== undefined ? { numCtx } : {}),
     }) as LanguageModelV1 & { config: any };
 
     ollamaInstance.config.baseURL = `${baseUrl}/api`;

@@ -16,14 +16,14 @@
   transition: color 0.2s ease;
 
   &:hover {
-    color: #FFD700;
+    color: #ffd700;
   }
 }
 
 .Toastify__progress-bar--success {
-  background: linear-gradient(90deg, #00FF88, #00E67A) !important;
+  background: linear-gradient(90deg, #00ff88, #00e67a) !important;
 }
 
 .Toastify__progress-bar--error {
-  background: linear-gradient(90deg, #FF5252, #FF3838) !important;
+  background: linear-gradient(90deg, #ff5252, #ff3838) !important;
 }

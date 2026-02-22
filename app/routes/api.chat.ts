@@ -160,7 +160,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             const ollamaReachable = await resourceManager.isOllamaReachable(ollamaBase);
 
             if (ollamaReachable) {
-              const fallbackModel = 'qwen2.5-coder:14b-instruct';
+              const fallbackModel = 'qwen2.5-coder:7b-instruct';
 
               await resourceManager.prepareOllama(ollamaBase, fallbackModel);
 
