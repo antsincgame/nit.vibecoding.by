@@ -1,5 +1,6 @@
 import { getSystemPrompt } from './prompts/prompts';
 import optimized from './prompts/optimized';
+import compact from './prompts/compact';
 import { getFineTunedPrompt } from './prompts/new-prompt';
 
 export interface PromptOptions {
@@ -39,6 +40,11 @@ export class PromptLibrary {
       label: 'Optimized Prompt (experimental)',
       description: 'an Experimental version of the prompt for lower token usage',
       get: (options) => optimized(options),
+    },
+    compact: {
+      label: 'Compact Prompt (local LLMs)',
+      description: 'Minimal prompt for large local models with limited context',
+      get: (options) => compact(options),
     },
   };
   static getList() {

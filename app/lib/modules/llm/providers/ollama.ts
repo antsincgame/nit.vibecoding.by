@@ -59,6 +59,15 @@ export default class OllamaProvider extends BaseProvider {
 
   private _modelSizeMap = new Map<string, number>();
 
+  private _lookupModelSize(model: string): number {
+    return (
+      this._modelSizeMap.get(model) ||
+      this._modelSizeMap.get(model + ':latest') ||
+      this._modelSizeMap.get(model.replace(/:latest$/, '')) ||
+      0
+    );
+  }
+
   private _convertEnvToRecord(env?: Env): Record<string, string> {
     if (!env) {
       return {};
@@ -147,12 +156,16 @@ export default class OllamaProvider extends BaseProvider {
     baseUrl = isDocker ? baseUrl.replace('127.0.0.1', 'host.docker.internal') : baseUrl;
 
     const desiredCtx = this.getDefaultNumCtx(serverEnv);
-    const modelSize = this._modelSizeMap.get(model) || 0;
+    const modelSize = this._lookupModelSize(model);
+    const sizeGB = modelSize / (1024 * 1024 * 1024);
+    const isLargeModel = sizeGB > 14;
+    const isUnknownModel = modelSize === 0;
+    const skipNumCtx = isUnknownModel || isLargeModel;
+    const numCtx = skipNumCtx ? undefined : pickNumCtx(modelSize, desiredCtx);
 
-    const isCustomModel = modelSize === 0;
-    const numCtx = isCustomModel ? undefined : pickNumCtx(modelSize, desiredCtx);
-
-    logger.info(`Ollama: ${model} (${(modelSize / 1e9).toFixed(1)}GB) → num_ctx=${numCtx ?? 'from-modelfile'}`);
+    logger.info(
+      `Ollama: ${model} (${sizeGB.toFixed(1)}GB) → num_ctx=${numCtx ?? 'from-modelfile'}${isLargeModel ? ' [large/split]' : ''}`,
+    );
 
     const ollamaInstance = ollama(model, {
       ...(numCtx !== undefined ? { numCtx } : {}),

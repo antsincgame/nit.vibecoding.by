@@ -113,8 +113,15 @@ export async function streamText(props: {
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
 
+  const useCompactPrompt = !promptId && dynamicMaxTokens <= 16384;
+  const effectivePromptId = promptId || (useCompactPrompt ? 'compact' : 'default');
+
+  if (useCompactPrompt) {
+    logger.info(`Using compact prompt for model ${currentModel} (maxTokens=${dynamicMaxTokens})`);
+  }
+
   let systemPrompt =
-    PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
+    PromptLibrary.getPropmtFromLibrary(effectivePromptId, {
       cwd: WORK_DIR,
       allowedHtmlElements: allowedHTMLElements,
       modificationTagName: MODIFICATIONS_TAG_NAME,
