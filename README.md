@@ -5,31 +5,34 @@
 ```
  ★═══════════════════════════════════════════════════════════════════★
  ║                                                                   ║
- ║          ◈  M Y B O L T  ◈                                       ║
- ║          AI-Ассистент Веб-Разработки                              ║
+ ║          ◈  N I T . V I B E C O D I N G . B Y  ◈                 ║
+ ║          Belarusian AI-Powered Web Development                    ║
  ║                                                                   ║
- ║          ✦  vibecoding.by  ✦                                      ║
+ ║          ✦  Built in Belarus  ✦                                   ║
  ║                                                                   ║
  ★═══════════════════════════════════════════════════════════════════★
 ```
 
 <br>
 
-<img src="https://img.shields.io/badge/Школа-vibecoding.by-gold?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDJMMiA3bDEwIDUgMTAtNS0xMC01ek0yIDE3bDEwIDUgMTAtNSIgZmlsbD0iI2ZmZDcwMCIvPjwvc3ZnPg==" alt="vibecoding.by"/>
-<img src="https://img.shields.io/badge/Преподаватель-Дмитрий_Орлов-blueviolet?style=for-the-badge" alt="Дмитрий Орлов"/>
-<img src="https://img.shields.io/badge/Стек-Remix_+_React_+_PocketBase-00f5ff?style=for-the-badge" alt="Stack"/>
+<img src="https://img.shields.io/badge/School-vibecoding.by-gold?style=for-the-badge" alt="vibecoding.by"/>
+<img src="https://img.shields.io/badge/Instructor-Dmitry_Orlov-blueviolet?style=for-the-badge" alt="Dmitry Orlov"/>
+<img src="https://img.shields.io/badge/Stack-Remix_+_React_+_PocketBase-00f5ff?style=for-the-badge" alt="Stack"/>
+<img src="https://img.shields.io/badge/Made_in-Belarus_🇧🇾-red?style=for-the-badge" alt="Belarus"/>
 
 <br>
 
-<img src="https://img.shields.io/badge/PocketBase-Локальный_Бэкенд-00ff88?style=flat-square&logo=sqlite" alt="PocketBase"/>
-<img src="https://img.shields.io/badge/Ollama-Локальные_LLM-8b5cf6?style=flat-square" alt="Ollama"/>
-<img src="https://img.shields.io/badge/LM_Studio-Авто--запуск-f4a836?style=flat-square" alt="LM Studio"/>
-<img src="https://img.shields.io/badge/Offline--First-Без_Интернета-ff00ff?style=flat-square" alt="Offline"/>
+<img src="https://img.shields.io/badge/PocketBase-Local_Backend-00ff88?style=flat-square&logo=sqlite" alt="PocketBase"/>
+<img src="https://img.shields.io/badge/Ollama-Local_LLM-8b5cf6?style=flat-square" alt="Ollama"/>
+<img src="https://img.shields.io/badge/LM_Studio-Auto--Launch-f4a836?style=flat-square" alt="LM Studio"/>
+<img src="https://img.shields.io/badge/Offline--First-No_Internet_Required-ff00ff?style=flat-square" alt="Offline"/>
 
 <br><br>
 
-> *Форк [bolt.diy](https://github.com/stackblitz-labs/bolt.diy), доработанный в рамках учебного курса*
-> *школы [vibecoding.by](https://vibecoding.by)*
+**A Belarusian AI assistant for full-stack web development — entirely in the browser.**
+
+> Fork of [bolt.diy](https://github.com/stackblitz-labs/bolt.diy), enhanced at [vibecoding.by](https://vibecoding.by) school.
+> Local-first. Offline-capable. Fully autonomous.
 
 </div>
 
@@ -37,66 +40,68 @@
 
 <div align="center">
 
-### ◈ Навигация ◈
+### ◈ Navigation ◈
 
-[Возможности](#-возможности) · [Архитектура](#-архитектура) · [Быстрый старт](#-быстрый-старт) · [PocketBase](#-pocketbase) · [Локальные модели](#-локальные-модели) · [Что сделано](#-что-сделано-в-рамках-курса)
+[Features](#-features) · [Architecture](#-architecture) · [Quick Start](#-quick-start) · [PocketBase](#-pocketbase) · [Local Models](#-local-models) · [What We Built](#-what-we-built) · [Project Structure](#-project-structure)
 
 </div>
 
 ---
 
-## ✦ О проекте
+## ✦ About
 
-**MyBolt** — AI-среда для full-stack веб-разработки прямо в браузере. Вы описываете что хотите — нейросеть генерирует полноценное приложение: HTML, CSS, JavaScript, React, Node.js, базу данных.
+**nit.vibecoding.by** is an AI-powered environment for full-stack web development right in your browser. Describe what you want — the neural network generates a complete application: HTML, CSS, JavaScript, React, Node.js, database and all.
 
-Ключевая особенность этого форка — **полная автономность**. Всё работает локально, без интернета: локальные LLM через Ollama/LM Studio, локальная база PocketBase, автоматическая настройка при первом запуске.
+The key differentiator of this fork is **full autonomy**. Everything runs locally, without internet: local LLMs via Ollama/LM Studio, local PocketBase database, automatic setup on first launch.
+
+This project is developed as part of the educational program at **[vibecoding.by](https://vibecoding.by)** — a Belarusian school of AI-assisted development, led by instructor **Dmitry Orlov**.
 
 ---
 
-## ⚡ Возможности
+## ⚡ Features
 
 <table>
 <tr>
 <td width="50%">
 
-### 🧠 Нейросети
-- Поддержка **15+ провайдеров** LLM
-- **Локальные модели** — Ollama, LM Studio
-- Облачные — OpenAI, Anthropic, Gemini, Groq, DeepSeek, Mistral, xAI, Cohere, Perplexity, OpenRouter, HuggingFace
-- **Улучшение промптов** через AI
-- Стриминг генерации кода в реальном времени
+### 🧠 Neural Networks
+- Support for **15+ LLM providers**
+- **Local models** — Ollama, LM Studio
+- Cloud — OpenAI, Anthropic, Gemini, Groq, DeepSeek, Mistral, xAI, Cohere, Perplexity, OpenRouter, HuggingFace
+- **Prompt enhancement** via AI
+- Real-time code streaming
 
 </td>
 <td width="50%">
 
-### 🗄️ Бэкенд
-- **PocketBase** — локальная БД (SQLite + REST API)
-- Авто-скачивание и авто-запуск
-- Авто-создание superuser
-- Автогенерация `pb-setup.js` для коллекций
-- Работает **без интернета**
+### 🗄️ Backend
+- **PocketBase** — local DB (SQLite + REST API)
+- Auto-download and auto-launch
+- Auto-creation of superuser
+- Auto-generation of `pb-setup.js` for collections
+- Works **completely offline**
 
 </td>
 </tr>
 <tr>
 <td>
 
-### 🛠️ Разработка
-- Генерация полноценных веб-приложений
-- Встроенный терминал
-- Откат к предыдущим версиям кода
-- Git-клонирование и импорт проектов
-- Прикрепление изображений к промптам
-- Экспорт проекта как ZIP
+### 🛠️ Development
+- Full-stack web app generation from text
+- Integrated terminal
+- Code version rollback
+- Git clone and project import
+- Image attachments in prompts
+- Export project as ZIP
 
 </td>
 <td>
 
-### 🚀 Деплой
-- Деплой на **Netlify** из интерфейса
-- Публикация на **GitHub**
-- Docker-контейнеризация
-- WebContainer — среда исполнения в браузере
+### 🚀 Deployment
+- Deploy to **Netlify** from the UI
+- Publish to **GitHub**
+- Docker containerization
+- WebContainer — in-browser runtime
 
 </td>
 </tr>
@@ -104,38 +109,38 @@
 
 ---
 
-## 🔮 Архитектура
+## 🔮 Architecture
 
 ```mermaid
 graph TB
-    subgraph user [Пользователь]
-        Browser["Браузер"]
+    subgraph user [User]
+        Browser["Browser"]
     end
 
-    subgraph app [MyBolt UI — Remix + React]
-        Chat["Чат-интерфейс"]
-        Prompts["Системные промпты"]
-        Parser["Парсер сообщений"]
-        ActionRunner["Исполнитель действий"]
+    subgraph app [nit.vibecoding.by — Remix + React]
+        Chat["Chat Interface"]
+        Prompts["System Prompts"]
+        Parser["Message Parser"]
+        ActionRunner["Action Runner"]
     end
 
-    subgraph llm [LLM Провайдеры]
-        Local["Локальные"]
-        Cloud["Облачные"]
+    subgraph llm [LLM Providers]
+        Local["Local"]
+        Cloud["Cloud"]
         Ollama["Ollama :11434"]
         LMStudio["LM Studio :1234"]
         OpenAI["OpenAI / Anthropic / Gemini ..."]
     end
 
-    subgraph runtime [Среда Исполнения]
+    subgraph runtime [Runtime Environment]
         WebContainer["WebContainer"]
         NodeJS["Node.js + npm + Vite"]
     end
 
-    subgraph backend [Локальный Бэкенд]
+    subgraph backend [Local Backend]
         PocketBase["PocketBase :8090"]
         SQLite["SQLite"]
-        AdminPanel["Админ-панель"]
+        AdminPanel["Admin Panel"]
         RestAPI["REST API"]
     end
 
@@ -161,90 +166,77 @@ graph TB
 
 ---
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
-### Требования
+### Requirements
 
-| Компонент | Версия | Ссылка |
-|-----------|--------|--------|
+| Component | Version | Link |
+|-----------|---------|------|
 | **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) |
-| **pnpm** | Последняя | Устанавливается командой ниже |
+| **pnpm** | Latest | Installed via command below |
 
-### Установка
+### Installation
 
 ```bash
-# Клонировать репозиторий
-git clone https://github.com/antsincgame/boltby.git
-cd boltby
+# Clone the repository
+git clone https://github.com/antsincgame/nit.vibecoding.by.git
+cd nit.vibecoding.by
 
-# Установить менеджер пакетов
+# Install package manager
 npm install -g pnpm
 
-# Установить зависимости
+# Install dependencies
 pnpm install
 
-# Запустить
+# Launch (PocketBase downloads automatically)
 pnpm run dev
 ```
 
-### Что происходит при первом запуске
+### What Happens on First Launch
 
-Скрипт `pre-start.cjs` автоматически выполняет:
+The `pre-start.cjs` script automatically:
 
 ```
- 1. ◈ Скачивает PocketBase (если не установлен)
- 2. ◈ Создаёт superuser (admin@bolt.local)
- 3. ◈ Сохраняет credentials в .env.local
- 4. ◈ Запускает PocketBase на порту 8090
- 5. ◈ Запускает LM Studio (если установлен)
- 6. ◈ Запускает dev-сервер на порту 5173
+ 1. ◈ Downloads PocketBase (if not installed)
+ 2. ◈ Creates superuser (admin@bolt.local)
+ 3. ◈ Saves credentials to .env.local
+ 4. ◈ Starts PocketBase on port 8090
+ 5. ◈ Launches LM Studio (if installed)
+ 6. ◈ Starts dev server on port 5173
 ```
 
-Откройте **http://localhost:5173** в браузере.
+Open **http://localhost:5173** in your browser.
 
 ---
 
 ## 🗄️ PocketBase
 
-PocketBase — локальный open-source бэкенд. Один бинарный файл, SQLite внутри, REST API, админ-панель, авторизация, подписки в реальном времени.
+PocketBase is a local open-source backend. Single binary, SQLite inside, REST API, admin panel, authentication, real-time subscriptions.
 
-<table>
-<tr>
-<td><b>Компонент</b></td>
-<td><b>Адрес</b></td>
-</tr>
-<tr>
-<td>REST API</td>
-<td><code>http://localhost:8090/api/</code></td>
-</tr>
-<tr>
-<td>Админ-панель</td>
-<td><code>http://localhost:8090/_/</code></td>
-</tr>
-<tr>
-<td>Суперпользователь</td>
-<td><code>admin@bolt.local</code> / <code>boltadmin2024</code></td>
-</tr>
-</table>
+| Component | Address |
+|-----------|---------|
+| REST API | `http://localhost:8090/api/` |
+| Admin Panel | `http://localhost:8090/_/` |
+| Superuser | `admin@bolt.local` / `boltadmin2024` |
 
-### Как это работает
+### How It Works
 
-Когда вы просите MyBolt создать приложение с базой данных, нейросеть автоматически:
+When you ask the AI to create an app with a database, it automatically:
 
-1. Генерирует файл **`pb-setup.js`** — скрипт, который создаёт коллекции через API PocketBase
-2. Добавляет в `package.json` скрипт запуска: `"dev": "node pb-setup.js && vite"`
-3. Генерирует код приложения с использованием **PocketBase SDK**
+1. Generates a **`pb-setup.js`** file — a script that creates collections via the PocketBase API
+2. Adds a launch script to `package.json`: `"dev": "node pb-setup.js && vite"`
+3. Generates application code using the **PocketBase SDK**
 
-Коллекции создаются автоматически при первом запуске — вручную ничего настраивать не нужно.
+Collections are created automatically on first run — no manual configuration needed.
 
 <details>
-<summary><b>Пример сгенерированного pb-setup.js</b></summary>
+<summary><b>Example of generated pb-setup.js</b></summary>
 
 ```javascript
 const PB_URL = process.env.VITE_POCKETBASE_URL || 'http://localhost:8090';
 
 async function setup() {
-  // Авторизация как суперпользователь
+  // Authenticate as superuser
   const auth = await fetch(`${PB_URL}/api/collections/_superusers/auth-with-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -253,12 +245,12 @@ async function setup() {
   const { token } = await auth.json();
   const headers = { 'Content-Type': 'application/json', Authorization: token };
 
-  // Проверка существующих коллекций
+  // Check existing collections
   const existing = await fetch(`${PB_URL}/api/collections`, { headers });
   const { items } = await existing.json();
   const names = items.map((c) => c.name);
 
-  // Определение коллекций
+  // Define collections
   const collections = [
     {
       name: 'posts',
@@ -271,7 +263,7 @@ async function setup() {
     },
   ];
 
-  // Создание недостающих коллекций
+  // Create missing collections
   for (const col of collections) {
     if (names.includes(col.name)) continue;
     await fetch(`${PB_URL}/api/collections`, {
@@ -282,146 +274,146 @@ async function setup() {
   }
 }
 
-setup().catch(() => console.log('PocketBase не доступен, пропускаем настройку'));
+setup().catch(() => console.log('PocketBase not available, skipping setup'));
 ```
 
 </details>
 
 ---
 
-## 🧠 Локальные модели
+## 🧠 Local Models
 
-Для работы без интернета установите одну из локальных LLM-платформ:
+To work without internet, install one of the local LLM platforms:
 
 ### Ollama
 
 ```bash
-# Установка (Linux/macOS)
+# Install (Linux/macOS)
 curl -fsSL https://ollama.ai/install.sh | sh
 
-# Скачать рекомендуемую модель
+# Download recommended model
 ollama pull qwen2.5-coder:14b
 ```
 
-Ollama запускается автоматически. Доступен на `http://localhost:11434`.
+Ollama starts automatically. Available at `http://localhost:11434`.
 
 ### LM Studio
 
-1. Скачайте с [lmstudio.ai](https://lmstudio.ai/)
-2. Загрузите модель (рекомендуется **Qwen 2.5 Coder 14B**)
-3. MyBolt автоматически запустит LM Studio при старте
+1. Download from [lmstudio.ai](https://lmstudio.ai/)
+2. Load a model (recommended: **Qwen 2.5 Coder 14B**)
+3. The app automatically launches LM Studio on startup
 
-### Настройка API-ключей (для облачных провайдеров)
+### API Keys (for cloud providers)
 
-1. Откройте интерфейс MyBolt
-2. Выберите провайдер из выпадающего списка
-3. Нажмите иконку карандаша рядом с полем ключа
-4. Введите API-ключ
+1. Open the interface
+2. Select a provider from the dropdown
+3. Click the pencil icon next to the key field
+4. Enter your API key
 
-> Для локальных моделей API-ключи **не нужны**.
+> For local models, **no API keys** are needed.
 
 ---
 
 ## 🐳 Docker
 
 ```bash
-# Сборка
+# Build
 docker build . --target bolt-ai-development
 
-# Запуск
+# Run
 docker compose --profile development up
 ```
 
 ---
 
-## 📋 Скрипты
+## 📋 Scripts
 
-| Команда | Описание |
-|---------|----------|
-| `pnpm run dev` | Запуск dev-сервера |
-| `pnpm run build` | Сборка проекта |
-| `pnpm run preview` | Сборка + локальный запуск |
-| `pnpm test` | Запуск тестов (Vitest) |
-| `pnpm run typecheck` | Проверка типов TypeScript |
-| `pnpm run lint:fix` | Автоисправление ошибок линтера |
-
----
-
-## ✅ Что сделано в рамках курса
-
-### Миграция на PocketBase
-
-| Задача | Статус |
-|--------|--------|
-| Полное удаление Supabase (5 файлов, ~2000 строк) | Выполнено |
-| Новый store `pocketbase.ts` с health-check | Выполнено |
-| Новый API route `api.pocketbase.ts` с SSRF-защитой | Выполнено |
-| Авто-скачивание бинаря PocketBase | Выполнено |
-| Авто-создание superuser при первом запуске | Выполнено |
-| Обновление 4 системных промптов для PocketBase | Выполнено |
-| Инструкции для LLM по генерации `pb-setup.js` | Выполнено |
-
-### Безопасность
-
-| Задача | Статус |
-|--------|--------|
-| Устранение SSRF-уязвимости в API route | Выполнено |
-| Whitelist разрешённых API-путей | Выполнено |
-| Валидация HTTP-методов | Выполнено |
-| Защита от race condition в health-check | Выполнено |
-| Обработка unhandled promise rejection | Выполнено |
-
-### Оптимизация производительности
-
-| Задача | Статус |
-|--------|--------|
-| `AssistantMessage.tsx` — O(n²) → O(n) через Map | Выполнено |
-| `Chat.client.tsx` — мемоизация useCallback/useMemo | Выполнено |
-| `Messages.client.tsx` — стабильные key (messageId) | Выполнено |
-| Исправление типизации в `message-parser.ts` | Выполнено |
-| Удаление debug-логирования из production | Выполнено |
-| Настройка автозапуска LM Studio | Выполнено |
+| Command | Description |
+|---------|-------------|
+| `pnpm run dev` | Start dev server |
+| `pnpm run build` | Build the project |
+| `pnpm run preview` | Build + local preview |
+| `pnpm test` | Run tests (Vitest) |
+| `pnpm run typecheck` | TypeScript type checking |
+| `pnpm run lint:fix` | Auto-fix linter errors |
 
 ---
 
-## 📁 Структура проекта
+## ✅ What We Built
+
+### Migration to PocketBase
+
+| Task | Status |
+|------|--------|
+| Full removal of Supabase (5 files, ~2000 lines) | Done |
+| New store `pocketbase.ts` with health-check | Done |
+| New API route `api.pocketbase.ts` with SSRF protection | Done |
+| Auto-download of PocketBase binary | Done |
+| Auto-creation of superuser on first launch | Done |
+| Updated 4 system prompts for PocketBase | Done |
+| LLM instructions for `pb-setup.js` generation | Done |
+
+### Security
+
+| Task | Status |
+|------|--------|
+| SSRF vulnerability fix in API route | Done |
+| Whitelist of allowed API paths | Done |
+| HTTP method validation | Done |
+| Race condition protection in health-check | Done |
+| Unhandled promise rejection fix | Done |
+
+### Performance Optimization
+
+| Task | Status |
+|------|--------|
+| `AssistantMessage.tsx` — O(n^2) to O(n) via Map | Done |
+| `Chat.client.tsx` — memoization with useCallback/useMemo | Done |
+| `Messages.client.tsx` — stable keys (messageId) | Done |
+| Type fix in `message-parser.ts` | Done |
+| Removed debug logging from production | Done |
+| Auto-launch configuration for LM Studio | Done |
+
+---
+
+## 📁 Project Structure
 
 ```
-MyBolt/
+nit.vibecoding.by/
 │
 ├── app/
-│   ├── components/           React-компоненты
-│   │   ├── @settings/        Настройки, подключения, диагностика
-│   │   └── chat/             Чат, сообщения, алерты
+│   ├── components/           React components
+│   │   ├── @settings/        Settings, connections, diagnostics
+│   │   └── chat/             Chat, messages, alerts
 │   │
 │   ├── lib/
-│   │   ├── .server/llm/      Серверная логика стриминга LLM
-│   │   ├── common/prompts/   Системные промпты (4 варианта)
-│   │   ├── hooks/            React-хуки
-│   │   ├── modules/llm/      Провайдеры LLM (15+ штук)
-│   │   ├── persistence/      Хранение чатов (IndexedDB)
-│   │   ├── runtime/          Парсер сообщений, исполнитель действий
+│   │   ├── .server/llm/      Server-side LLM streaming logic
+│   │   ├── common/prompts/   System prompts (4 variants)
+│   │   ├── hooks/            React hooks
+│   │   ├── modules/llm/      LLM providers (15+)
+│   │   ├── persistence/      Chat storage (IndexedDB)
+│   │   ├── runtime/          Message parser, action runner
 │   │   └── stores/           Nano-stores (pocketbase, workbench)
 │   │
 │   ├── routes/               API endpoints
-│   │   ├── api.chat.ts       Главный endpoint чата
-│   │   ├── api.enhancer.ts   Улучшение промптов
-│   │   └── api.pocketbase.ts Прокси к PocketBase
+│   │   ├── api.chat.ts       Main chat endpoint
+│   │   ├── api.enhancer.ts   Prompt enhancement
+│   │   └── api.pocketbase.ts PocketBase proxy
 │   │
-│   └── types/                TypeScript-типы
+│   └── types/                TypeScript types
 │
-├── pre-start.cjs             Авто-запуск PocketBase + LM Studio
-├── .env.local                API-ключи (не коммитится!)
+├── pre-start.cjs             Auto-launch PocketBase + LM Studio
+├── .env.local                API keys (not committed!)
 └── package.json
 ```
 
 ---
 
-## 📜 Лицензия
+## 📜 License
 
-Исходный код распространяется под лицензией **MIT**.
+Source code is distributed under the **MIT** license.
 
-WebContainers API требует [отдельной лицензии](https://webcontainers.io/enterprise) для коммерческого использования.
+WebContainers API requires a [separate license](https://webcontainers.io/enterprise) for commercial use.
 
 ---
 
@@ -432,18 +424,19 @@ WebContainers API требует [отдельной лицензии](https://w
 ```
 ★═══════════════════════════════════════════════════════════════════★
 ║                                                                   ║
-║   Проект школы vibecoding.by                                      ║
-║   Преподаватель: Дмитрий Орлов                                    ║
+║   A project by vibecoding.by                                      ║
+║   Instructor: Dmitry Orlov                                        ║
+║   Made in Belarus 🇧🇾                                              ║
 ║                                                                   ║
 ★═══════════════════════════════════════════════════════════════════★
 ```
 
 <br>
 
-<img src="https://img.shields.io/badge/vibecoding.by-Школа_Вайбкодинга-gold?style=for-the-badge" alt="vibecoding.by"/>
+<img src="https://img.shields.io/badge/vibecoding.by-Belarusian_AI_School-gold?style=for-the-badge" alt="vibecoding.by"/>
 
 <br><br>
 
-*Создано с помощью AI, доработано с душой*
+*Built with AI. Perfected with soul.*
 
 </div>
