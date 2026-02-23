@@ -33,22 +33,24 @@ export interface OllamaApiResponse {
  * with big context windows explode GPU memory (e.g. 14B Q5 = 8.4GB file,
  * but 32K ctx adds ~7GB KV cache → 15GB total, forcing CPU/GPU split).
  *
- * Minimum is 8192 because bolt.diy system prompt alone is ~6500 tokens.
+ * Minimum is 12288 because bolt.diy system prompt + conversation needs ~10K tokens.
  */
 function pickNumCtx(modelSizeBytes: number, desiredCtx: number): number {
-  const MIN_CTX = 8192;
+  const MIN_CTX = 12288;
   const sizeGB = modelSizeBytes / (1024 * 1024 * 1024);
 
   let cap = desiredCtx;
 
-  if (sizeGB > 20) {
-    cap = 8192;
-  } else if (sizeGB > 10) {
+  if (sizeGB > 25) {
     cap = 12288;
-  } else if (sizeGB > 5) {
+  } else if (sizeGB > 14) {
     cap = 16384;
-  } else if (sizeGB > 3) {
+  } else if (sizeGB > 10) {
+    cap = 16384;
+  } else if (sizeGB > 5) {
     cap = 24576;
+  } else if (sizeGB > 3) {
+    cap = 32768;
   }
 
   return Math.max(MIN_CTX, Math.min(desiredCtx, cap));
@@ -191,17 +193,13 @@ export default class OllamaProvider extends BaseProvider {
     const desiredCtx = this.getDefaultNumCtx(serverEnv);
     const modelSize = this._lookupModelSize(model);
     const sizeGB = modelSize / (1024 * 1024 * 1024);
-    const isLargeModel = sizeGB > 14;
     const isUnknownModel = modelSize === 0;
-    const skipNumCtx = isUnknownModel || isLargeModel;
-    const numCtx = skipNumCtx ? undefined : pickNumCtx(modelSize, desiredCtx);
+    const numCtx = isUnknownModel ? desiredCtx : pickNumCtx(modelSize, desiredCtx);
 
-    logger.info(
-      `Ollama: ${model} (${sizeGB.toFixed(1)}GB) → num_ctx=${numCtx ?? 'from-modelfile'}${isLargeModel ? ' [large/split]' : ''}`,
-    );
+    logger.info(`Ollama: ${model} (${sizeGB.toFixed(1)}GB) → num_ctx=${numCtx}`);
 
     const ollamaInstance = ollama(model, {
-      ...(numCtx !== undefined ? { numCtx } : {}),
+      numCtx,
     }) as LanguageModelV1 & { config: any };
 
     ollamaInstance.config.baseURL = `${baseUrl}/api`;

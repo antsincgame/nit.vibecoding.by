@@ -24,11 +24,53 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Promise-based async mutex. Serializes access to a critical section
+ * so that only one caller runs at a time; others queue up.
+ */
+class AsyncMutex {
+  private _chain: Promise<void> = Promise.resolve();
+  private _locked = false;
+  private _queueSize = 0;
+
+  get locked(): boolean {
+    return this._locked;
+  }
+
+  get waiting(): number {
+    return this._queueSize;
+  }
+
+  acquire<T>(fn: () => Promise<T>): Promise<T> {
+    this._queueSize++;
+
+    const next = this._chain.then(async () => {
+      this._locked = true;
+      this._queueSize--;
+
+      try {
+        return await fn();
+      } finally {
+        this._locked = false;
+      }
+    });
+
+    /* Detach the returned promise from the queue chain so errors in one caller don't break subsequent ones. */
+    this._chain = next.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    return next;
+  }
+}
+
 class ResourceManager {
   private static _instance: ResourceManager;
 
   private _activeProvider: string | null = null;
   private _activeModel: string | null = null;
+  private readonly _gpuMutex = new AsyncMutex();
 
   static getInstance(): ResourceManager {
     if (!ResourceManager._instance) {
@@ -36,6 +78,14 @@ class ResourceManager {
     }
 
     return ResourceManager._instance;
+  }
+
+  get gpuLocked(): boolean {
+    return this._gpuMutex.locked;
+  }
+
+  get gpuQueueSize(): number {
+    return this._gpuMutex.waiting;
   }
 
   private _getOllamaUrl(): string {
@@ -248,270 +298,287 @@ class ResourceManager {
   }
 
   async prepareOllama(baseUrl: string, keepModel: string): Promise<void> {
-    if (this._activeProvider === 'Ollama' && this._activeModel === keepModel) {
-      logger.debug(`[SKIP] Ollama/${keepModel} already active`);
+    return this._gpuMutex.acquire(async () => {
+      if (this._activeProvider === 'Ollama' && this._activeModel === keepModel) {
+        logger.debug(`[SKIP] Ollama/${keepModel} already active`);
 
-      return;
-    }
-
-    const reachable = await this.isOllamaReachable(baseUrl);
-
-    if (!reachable) {
-      this._activeProvider = null;
-      this._activeModel = null;
-      throw new Error(
-        `Ollama server is not running at ${baseUrl}. Please start Ollama first (run "ollama serve" in terminal).`,
-      );
-    }
-
-    logger.info(`========== RESOURCE SWITCH ==========`);
-    logger.info(`[TARGET] Ollama / ${keepModel}`);
-    logger.info(`[PREV]   ${this._activeProvider || 'none'} / ${this._activeModel || 'none'}`);
-
-    await this._unloadAllLMStudio(this._getLMStudioUrl());
-
-    let alreadyLoaded = false;
-
-    try {
-      const psResp = await fetch(`${baseUrl}/api/ps`);
-      const psData = (await psResp.json()) as { models: OllamaPsModel[] };
-
-      let unloaded = 0;
-
-      for (const loaded of psData.models || []) {
-        if (loaded.name === keepModel) {
-          alreadyLoaded = true;
-          logger.info(`[KEEP] Ollama: ${loaded.name} already loaded`);
-          continue;
-        }
-
-        logger.info(`[UNLOAD] Ollama: ${loaded.name}`);
-
-        await fetch(`${baseUrl}/api/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: loaded.name, keep_alive: 0 }),
-        });
-        unloaded++;
-      }
-
-      if (unloaded > 0) {
-        logger.info(`[SWAP] Ollama: waiting for ${unloaded} model(s) to release VRAM...`);
-
-        const freed = await this._waitForOllamaUnload(baseUrl, keepModel);
-
-        if (freed) {
-          logger.info(`[SWAP] Ollama: VRAM freed, ready to load ${keepModel}`);
-        } else {
-          logger.warn(`[SWAP] Ollama: timeout waiting for VRAM release, proceeding anyway`);
-        }
-      }
-    } catch (err) {
-      logger.warn(`[ERROR] Ollama cleanup: ${String(err)}`);
-    }
-
-    if (!alreadyLoaded) {
-      try {
-        logger.info(`[PRELOAD] Ollama: warming up ${keepModel}...`);
-
-        const warmup = await fetch(`${baseUrl}/api/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: keepModel, prompt: 'Hi', options: { num_predict: 1 }, keep_alive: '30m' }),
-          signal: AbortSignal.timeout(90_000),
-        });
-
-        if (warmup.ok) {
-          logger.info(`[PRELOAD] Ollama: ${keepModel} loaded into memory`);
-        }
-      } catch (err) {
-        logger.warn(`[PRELOAD] Ollama: warmup failed (${String(err)}), will load on first request`);
-      }
-    }
-
-    this._activeProvider = 'Ollama';
-    this._activeModel = keepModel;
-    logger.info(`[DONE] Ollama/${keepModel} ready`);
-    logger.info(`=====================================`);
-  }
-
-  async prepareLMStudio(baseUrl: string, keepModel: string, desiredCtx: number = 32768): Promise<void> {
-    if (this._activeProvider === 'LMStudio' && this._activeModel === keepModel) {
-      // Verify the model is actually loaded before skipping
-      try {
-        const resp = await fetch(`${baseUrl}/api/v1/models`, { signal: AbortSignal.timeout(3000) });
-        const data = (await resp.json()) as { models: LMStudioModelInfo[] };
-        const model = data.models?.find((m) => m.key === keepModel);
-
-        if (model?.loaded_instances?.length) {
-          logger.debug(`[SKIP] LMStudio/${keepModel} already active and verified`);
-          return;
-        }
-
-        logger.warn(
-          `[SKIP-INVALID] LMStudio/${keepModel} was cached as active but is not actually loaded. Re-preparing.`,
-        );
-        this._activeProvider = null;
-        this._activeModel = null;
-      } catch {
-        logger.debug(`[SKIP] LMStudio/${keepModel} already active (could not verify, trusting cache)`);
         return;
       }
-    }
 
-    const reachable = await this.isLMStudioReachable(baseUrl);
+      if (this._gpuMutex.waiting > 0) {
+        logger.info(`[QUEUE] ${this._gpuMutex.waiting} request(s) waiting for GPU`);
+      }
 
-    if (!reachable) {
-      this._activeProvider = null;
-      this._activeModel = null;
-      throw new Error(
-        `LM Studio server is not running at ${baseUrl}. Please start LM Studio and enable the local server.`,
-      );
-    }
+      const reachable = await this.isOllamaReachable(baseUrl);
 
-    logger.info(`========== RESOURCE SWITCH ==========`);
-    logger.info(`[TARGET] LMStudio / ${keepModel}`);
-    logger.info(`[PREV]   ${this._activeProvider || 'none'} / ${this._activeModel || 'none'}`);
+      if (!reachable) {
+        this._activeProvider = null;
+        this._activeModel = null;
+        throw new Error(
+          `Ollama server is not running at ${baseUrl}. Please start Ollama first (run "ollama serve" in terminal).`,
+        );
+      }
 
-    await this._unloadAllOllama(this._getOllamaUrl());
+      logger.info(`========== RESOURCE SWITCH ==========`);
+      logger.info(`[TARGET] Ollama / ${keepModel}`);
+      logger.info(`[PREV]   ${this._activeProvider || 'none'} / ${this._activeModel || 'none'}`);
 
-    let keepModelLoaded = false;
-    let needsWait = false;
+      await this._unloadAllLMStudio(this._getLMStudioUrl());
 
-    try {
-      const resp = await fetch(`${baseUrl}/api/v1/models`);
-      const data = (await resp.json()) as { models: LMStudioModelInfo[] };
+      let alreadyLoaded = false;
 
-      for (const m of data.models || []) {
-        if (m.type !== 'llm' || !m.loaded_instances?.length) {
-          continue;
-        }
+      try {
+        const psResp = await fetch(`${baseUrl}/api/ps`);
+        const psData = (await psResp.json()) as { models: OllamaPsModel[] };
 
-        for (const inst of m.loaded_instances) {
-          if (m.key === keepModel) {
-            keepModelLoaded = true;
-            logger.info(`[KEEP] LMStudio: ${m.key} already loaded (ctx=${inst.config.context_length})`);
+        let unloaded = 0;
+
+        for (const loaded of psData.models || []) {
+          if (loaded.name === keepModel) {
+            alreadyLoaded = true;
+            logger.info(`[KEEP] Ollama: ${loaded.name} already loaded`);
             continue;
           }
 
-          logger.info(`[UNLOAD] LMStudio: ${m.key} (ctx=${inst.config.context_length})`);
+          logger.info(`[UNLOAD] Ollama: ${loaded.name}`);
 
-          await fetch(`${baseUrl}/api/v1/models/unload`, {
+          await fetch(`${baseUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ instance_id: inst.id }),
+            body: JSON.stringify({ model: loaded.name, keep_alive: 0 }),
           });
-          needsWait = true;
+          unloaded++;
+        }
+
+        if (unloaded > 0) {
+          logger.info(`[SWAP] Ollama: waiting for ${unloaded} model(s) to release VRAM...`);
+
+          const freed = await this._waitForOllamaUnload(baseUrl, keepModel);
+
+          if (freed) {
+            logger.info(`[SWAP] Ollama: VRAM freed, ready to load ${keepModel}`);
+          } else {
+            logger.warn(`[SWAP] Ollama: timeout waiting for VRAM release, proceeding anyway`);
+          }
+        }
+      } catch (err) {
+        logger.warn(`[ERROR] Ollama cleanup: ${String(err)}`);
+      }
+
+      if (!alreadyLoaded) {
+        try {
+          logger.info(`[PRELOAD] Ollama: warming up ${keepModel}...`);
+
+          const warmup = await fetch(`${baseUrl}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: keepModel, prompt: 'Hi', options: { num_predict: 1 }, keep_alive: '30m' }),
+            signal: AbortSignal.timeout(90_000),
+          });
+
+          if (warmup.ok) {
+            logger.info(`[PRELOAD] Ollama: ${keepModel} loaded into memory`);
+          }
+        } catch (err) {
+          logger.warn(`[PRELOAD] Ollama: warmup failed (${String(err)}), will load on first request`);
         }
       }
 
-      if (needsWait) {
-        logger.info(`[SWAP] LMStudio: waiting for unloaded models to release VRAM...`);
+      this._activeProvider = 'Ollama';
+      this._activeModel = keepModel;
+      logger.info(`[DONE] Ollama/${keepModel} ready`);
+      logger.info(`=====================================`);
+    });
+  }
 
-        const freed = await this._waitForLMStudioUnload(baseUrl, keepModel);
+  async prepareLMStudio(baseUrl: string, keepModel: string, desiredCtx: number = 32768): Promise<void> {
+    return this._gpuMutex.acquire(async () => {
+      if (this._activeProvider === 'LMStudio' && this._activeModel === keepModel) {
+        try {
+          const resp = await fetch(`${baseUrl}/api/v1/models`, { signal: AbortSignal.timeout(3000) });
+          const data = (await resp.json()) as { models: LMStudioModelInfo[] };
+          const model = data.models?.find((m) => m.key === keepModel);
 
-        if (freed) {
-          logger.info(`[SWAP] LMStudio: VRAM freed, ready to load ${keepModel}`);
-        } else {
-          logger.warn(`[SWAP] LMStudio: timeout waiting for VRAM release, proceeding anyway`);
-        }
-      }
+          if (model?.loaded_instances?.length) {
+            logger.debug(`[SKIP] LMStudio/${keepModel} already active and verified`);
 
-      if (!keepModelLoaded) {
-        const targetModel = data.models.find((m) => m.key === keepModel);
-
-        if (targetModel) {
-          const maxCtx = targetModel.max_context_length || 131072;
-          const ctx = Math.min(desiredCtx, maxCtx);
-
-          logger.info(`[LOAD] LMStudio: ${keepModel} (ctx=${ctx}, max=${maxCtx})`);
-
-          const loadResp = await fetch(`${baseUrl}/api/v1/models/load`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: keepModel,
-              context_length: ctx,
-              flash_attention: true,
-            }),
-          });
-
-          const loadResult = (await loadResp.json()) as any;
-          logger.info(`[LOAD] LMStudio result: ${JSON.stringify(loadResult)}`);
-
-          if (loadResult?.error) {
-            const errMsg = loadResult.error?.message || JSON.stringify(loadResult.error);
-            throw new Error(`LM Studio failed to load model "${keepModel}": ${errMsg}`);
+            return;
           }
 
-          const modelLoaded = await this._waitForLMStudioModel(baseUrl, keepModel);
+          logger.warn(
+            `[SKIP-INVALID] LMStudio/${keepModel} was cached as active but is not actually loaded. Re-preparing.`,
+          );
+          this._activeProvider = null;
+          this._activeModel = null;
+        } catch {
+          logger.debug(`[SKIP] LMStudio/${keepModel} already active (could not verify, trusting cache)`);
 
-          if (!modelLoaded) {
+          return;
+        }
+      }
+
+      if (this._gpuMutex.waiting > 0) {
+        logger.info(`[QUEUE] ${this._gpuMutex.waiting} request(s) waiting for GPU`);
+      }
+
+      const reachable = await this.isLMStudioReachable(baseUrl);
+
+      if (!reachable) {
+        this._activeProvider = null;
+        this._activeModel = null;
+        throw new Error(
+          `LM Studio server is not running at ${baseUrl}. Please start LM Studio and enable the local server.`,
+        );
+      }
+
+      logger.info(`========== RESOURCE SWITCH ==========`);
+      logger.info(`[TARGET] LMStudio / ${keepModel}`);
+      logger.info(`[PREV]   ${this._activeProvider || 'none'} / ${this._activeModel || 'none'}`);
+
+      await this._unloadAllOllama(this._getOllamaUrl());
+
+      let keepModelLoaded = false;
+      let needsWait = false;
+
+      try {
+        const resp = await fetch(`${baseUrl}/api/v1/models`);
+        const data = (await resp.json()) as { models: LMStudioModelInfo[] };
+
+        for (const m of data.models || []) {
+          if (m.type !== 'llm' || !m.loaded_instances?.length) {
+            continue;
+          }
+
+          for (const inst of m.loaded_instances) {
+            if (m.key === keepModel) {
+              keepModelLoaded = true;
+              logger.info(`[KEEP] LMStudio: ${m.key} already loaded (ctx=${inst.config.context_length})`);
+              continue;
+            }
+
+            logger.info(`[UNLOAD] LMStudio: ${m.key} (ctx=${inst.config.context_length})`);
+
+            await fetch(`${baseUrl}/api/v1/models/unload`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ instance_id: inst.id }),
+            });
+            needsWait = true;
+          }
+        }
+
+        if (needsWait) {
+          logger.info(`[SWAP] LMStudio: waiting for unloaded models to release VRAM...`);
+
+          const freed = await this._waitForLMStudioUnload(baseUrl, keepModel);
+
+          if (freed) {
+            logger.info(`[SWAP] LMStudio: VRAM freed, ready to load ${keepModel}`);
+          } else {
+            logger.warn(`[SWAP] LMStudio: timeout waiting for VRAM release, proceeding anyway`);
+          }
+        }
+
+        if (!keepModelLoaded) {
+          const targetModel = data.models.find((m) => m.key === keepModel);
+
+          if (targetModel) {
+            const maxCtx = targetModel.max_context_length || 131072;
+            const ctx = Math.min(desiredCtx, maxCtx);
+
+            logger.info(`[LOAD] LMStudio: ${keepModel} (ctx=${ctx}, max=${maxCtx})`);
+
+            const loadResp = await fetch(`${baseUrl}/api/v1/models/load`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: keepModel,
+                context_length: ctx,
+                flash_attention: true,
+              }),
+            });
+
+            const loadResult = (await loadResp.json()) as any;
+            logger.info(`[LOAD] LMStudio result: ${JSON.stringify(loadResult)}`);
+
+            if (loadResult?.error) {
+              const errMsg = loadResult.error?.message || JSON.stringify(loadResult.error);
+              throw new Error(`LM Studio failed to load model "${keepModel}": ${errMsg}`);
+            }
+
+            const modelLoaded = await this._waitForLMStudioModel(baseUrl, keepModel);
+
+            if (!modelLoaded) {
+              throw new Error(
+                `LM Studio model "${keepModel}" did not load within timeout. ` +
+                  `Possible causes: insufficient VRAM, corrupted model file, or guardrails blocking load.`,
+              );
+            }
+          } else {
             throw new Error(
-              `LM Studio model "${keepModel}" did not load within timeout. ` +
-                `Possible causes: insufficient VRAM, corrupted model file, or guardrails blocking load.`,
+              `Model "${keepModel}" not found in LM Studio. Available models: ${data.models.map((m) => m.key).join(', ')}`,
             );
           }
-        } else {
-          throw new Error(
-            `Model "${keepModel}" not found in LM Studio. Available models: ${data.models.map((m) => m.key).join(', ')}`,
-          );
         }
-      }
-    } catch (err) {
-      if (
-        err instanceof Error &&
-        (err.message.includes('not running') ||
-          err.message.includes('not found') ||
-          err.message.includes('failed to load') ||
-          err.message.includes('did not load'))
-      ) {
-        throw err;
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          (err.message.includes('not running') ||
+            err.message.includes('not found') ||
+            err.message.includes('failed to load') ||
+            err.message.includes('did not load'))
+        ) {
+          throw err;
+        }
+
+        logger.error(`[ERROR] LMStudio resource management: ${String(err)}`);
+        throw new Error(`Failed to prepare LM Studio model "${keepModel}": ${String(err)}`);
       }
 
-      logger.error(`[ERROR] LMStudio resource management: ${String(err)}`);
-      throw new Error(`Failed to prepare LM Studio model "${keepModel}": ${String(err)}`);
-    }
-
-    this._activeProvider = 'LMStudio';
-    this._activeModel = keepModel;
-    logger.info(`[DONE] LMStudio/${keepModel} ready`);
-    logger.info(`=====================================`);
+      this._activeProvider = 'LMStudio';
+      this._activeModel = keepModel;
+      logger.info(`[DONE] LMStudio/${keepModel} ready`);
+      logger.info(`=====================================`);
+    });
   }
 
   async unloadAll(): Promise<void> {
-    if (!this._activeProvider) {
-      return;
-    }
+    return this._gpuMutex.acquire(async () => {
+      if (!this._activeProvider) {
+        return;
+      }
 
-    logger.info(`========== RESOURCE CLEANUP ==========`);
-    logger.info(`[CLEANUP] Switching to cloud provider, freeing local resources`);
-    logger.info(`[PREV] ${this._activeProvider} / ${this._activeModel}`);
+      logger.info(`========== RESOURCE CLEANUP ==========`);
+      logger.info(`[CLEANUP] Switching to cloud provider, freeing local resources`);
+      logger.info(`[PREV] ${this._activeProvider} / ${this._activeModel}`);
 
-    const ollamaFreed = await this._unloadAllOllama(this._getOllamaUrl());
-    const lmsFreed = await this._unloadAllLMStudio(this._getLMStudioUrl());
+      const ollamaFreed = await this._unloadAllOllama(this._getOllamaUrl());
+      const lmsFreed = await this._unloadAllLMStudio(this._getLMStudioUrl());
 
-    logger.info(`[DONE] Freed ${ollamaFreed + lmsFreed} model(s) total`);
-    logger.info(`======================================`);
+      logger.info(`[DONE] Freed ${ollamaFreed + lmsFreed} model(s) total`);
+      logger.info(`======================================`);
 
-    this._activeProvider = null;
-    this._activeModel = null;
+      this._activeProvider = null;
+      this._activeModel = null;
+    });
   }
 
   async forceUnloadAll(): Promise<{ ollama: number; lmstudio: number }> {
-    logger.info(`========== FORCE UNLOAD ALL ==========`);
-    logger.info(`[FORCE] Unloading all models from Ollama and LM Studio`);
+    return this._gpuMutex.acquire(async () => {
+      logger.info(`========== FORCE UNLOAD ALL ==========`);
+      logger.info(`[FORCE] Unloading all models from Ollama and LM Studio`);
 
-    const ollamaFreed = await this._unloadAllOllama(this._getOllamaUrl());
-    const lmsFreed = await this._unloadAllLMStudio(this._getLMStudioUrl());
+      const ollamaFreed = await this._unloadAllOllama(this._getOllamaUrl());
+      const lmsFreed = await this._unloadAllLMStudio(this._getLMStudioUrl());
 
-    logger.info(`[DONE] Force-freed ${ollamaFreed + lmsFreed} model(s) total`);
-    logger.info(`======================================`);
+      logger.info(`[DONE] Force-freed ${ollamaFreed + lmsFreed} model(s) total`);
+      logger.info(`======================================`);
 
-    this._activeProvider = null;
-    this._activeModel = null;
+      this._activeProvider = null;
+      this._activeModel = null;
 
-    return { ollama: ollamaFreed, lmstudio: lmsFreed };
+      return { ollama: ollamaFreed, lmstudio: lmsFreed };
+    });
   }
 
   resetTracking(): void {

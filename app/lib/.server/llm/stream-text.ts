@@ -198,21 +198,19 @@ ${lockedFilesListString}
 
   const estimateTokens = (text: string) => Math.ceil(text.split(/\s+/).length * 2.5);
 
-  const systemPromptTokens = estimateTokens(systemPrompt);
+  let systemPromptTokens = estimateTokens(systemPrompt);
   const messageTokens = processedMessages.reduce(
     (sum, m) => sum + estimateTokens(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)),
     0,
   );
   const SAFETY_MARGIN = 500;
-  const usedTokens = systemPromptTokens + messageTokens + SAFETY_MARGIN;
-  const availableForOutput = Math.max(8192, dynamicMaxTokens - usedTokens);
+  let usedTokens = systemPromptTokens + messageTokens + SAFETY_MARGIN;
+  const isOverflow = usedTokens > dynamicMaxTokens;
 
-  logger.info(
-    `Token budget: ctx=${dynamicMaxTokens}, prompt=${systemPromptTokens}, msgs=${messageTokens}, output=${availableForOutput}`,
-  );
-
-  if (availableForOutput < 3000 && effectivePromptId !== 'compact') {
-    logger.warn(`Low token budget (${availableForOutput}). Switching to compact prompt.`);
+  if (isOverflow && effectivePromptId !== 'compact') {
+    logger.warn(
+      `Context OVERFLOW: used=${usedTokens} > ctx=${dynamicMaxTokens}. Switching to compact prompt to save artifact instructions.`,
+    );
 
     const compactPrompt = PromptLibrary.getPropmtFromLibrary('compact', {
       cwd: WORK_DIR,
@@ -222,7 +220,41 @@ ${lockedFilesListString}
 
     if (compactPrompt) {
       systemPrompt = compactPrompt;
+      effectivePromptId = 'compact';
+      systemPromptTokens = estimateTokens(systemPrompt);
+      usedTokens = systemPromptTokens + messageTokens + SAFETY_MARGIN;
     }
+  }
+
+  if (isOverflow && usedTokens > dynamicMaxTokens) {
+    const keepCount = Math.max(2, Math.floor((dynamicMaxTokens - systemPromptTokens - SAFETY_MARGIN) / 300));
+    processedMessages = processedMessages.slice(-keepCount);
+
+    const trimmedMsgTokens = processedMessages.reduce(
+      (sum, m) => sum + estimateTokens(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)),
+      0,
+    );
+    usedTokens = systemPromptTokens + trimmedMsgTokens + SAFETY_MARGIN;
+
+    logger.warn(`Still overflowing after compact prompt. Trimmed messages to last ${keepCount} (used=${usedTokens}).`);
+  }
+
+  const availableForOutput = Math.max(4096, dynamicMaxTokens - usedTokens);
+
+  logger.info(
+    `Token budget: ctx=${dynamicMaxTokens}, prompt=${systemPromptTokens}, msgs=${messageTokens}, output=${availableForOutput}, promptId=${effectivePromptId}`,
+  );
+
+  const isLocalProvider = currentProvider === 'Ollama' || currentProvider === 'LMStudio';
+  const isQwen3 = currentModel.toLowerCase().includes('qwen3');
+
+  if (isQwen3) {
+    systemPrompt = `/no_think\n${systemPrompt}`;
+    logger.info('Qwen3 detected: prepended /no_think to disable thinking mode');
+  }
+
+  if (isLocalProvider) {
+    systemPrompt += `\n\nREMINDER: You MUST wrap ALL code in <boltArtifact> and <boltAction> tags. NEVER write raw code or HTML in chat text. Start your response with <boltArtifact id="..." title="...">.`;
   }
 
   logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
