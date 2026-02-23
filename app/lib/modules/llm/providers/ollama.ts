@@ -27,6 +27,33 @@ export interface OllamaApiResponse {
   models: OllamaModel[];
 }
 
+let _gpuVramMB: number | null = null;
+
+async function initGpuVram(): Promise<void> {
+  if (_gpuVramMB !== null || typeof window !== 'undefined') {
+    return;
+  }
+
+  try {
+    const cp = await import('node:child_process');
+    const out = cp
+      .execSync('nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits', {
+        encoding: 'utf-8',
+        timeout: 5000,
+      })
+      .trim();
+    _gpuVramMB = parseInt(out.split('\n')[0], 10) || 0;
+    logger.info(`GPU VRAM detected: ${_gpuVramMB} MB`);
+  } catch {
+    _gpuVramMB = 0;
+    logger.debug('GPU VRAM detection unavailable (no nvidia-smi)');
+  }
+}
+
+function getGpuVramMB(): number {
+  return _gpuVramMB ?? 0;
+}
+
 /**
  * Pick a safe num_ctx based on model weight file size.
  * KV cache grows proportionally to num_ctx × model_dim, so larger models
@@ -54,6 +81,51 @@ function pickNumCtx(modelSizeBytes: number, desiredCtx: number): number {
   }
 
   return Math.max(MIN_CTX, Math.min(desiredCtx, cap));
+}
+
+/**
+ * Calculate safe GPU layer count to prevent VRAM OOM.
+ * If the model is larger than available GPU VRAM (minus KV cache overhead),
+ * we limit how many transformer blocks are offloaded to the GPU.
+ * This overrides any num_gpu set in the Modelfile.
+ *
+ * KV cache sizing:
+ *   Dense models  — ~1 GB per 8K tokens of context
+ *   MoE models    — ~0.4 GB per 8K (only active experts maintain KV)
+ *   Small models (<5 GB) — ~0.3 GB per 8K
+ */
+function pickNumGpu(modelSizeBytes: number, numCtx: number): number | undefined {
+  if (modelSizeBytes === 0) {
+    return undefined;
+  }
+
+  const vramMB = getGpuVramMB();
+
+  if (vramMB === 0) {
+    return undefined;
+  }
+
+  const modelMB = modelSizeBytes / (1024 * 1024);
+  const sizeGB = modelSizeBytes / (1024 * 1024 * 1024);
+
+  const isMoE = sizeGB > 15 && modelMB / sizeGB > 1000;
+  const kvPerCtxChunk = isMoE ? 400 : sizeGB < 5 ? 300 : 700;
+  const kvCacheMB = (numCtx / 8192) * kvPerCtxChunk;
+
+  const availableForWeightsMB = vramMB * 0.9 - kvCacheMB;
+
+  if (availableForWeightsMB >= modelMB) {
+    return undefined;
+  }
+
+  if (availableForWeightsMB <= 256) {
+    return 1;
+  }
+
+  const estimatedBlocks = Math.max(24, Math.round(sizeGB * 2.8));
+  const ratio = availableForWeightsMB / modelMB;
+
+  return Math.max(1, Math.floor(estimatedBlocks * ratio));
 }
 
 export default class OllamaProvider extends BaseProvider {
@@ -127,6 +199,8 @@ export default class OllamaProvider extends BaseProvider {
     settings?: IProviderSetting,
     serverEnv: Record<string, string> = {},
   ): Promise<ModelInfo[]> {
+    await initGpuVram();
+
     let { baseUrl } = this.getProviderBaseUrlAndKey({
       apiKeys,
       providerSettings: settings,
@@ -195,11 +269,15 @@ export default class OllamaProvider extends BaseProvider {
     const sizeGB = modelSize / (1024 * 1024 * 1024);
     const isUnknownModel = modelSize === 0;
     const numCtx = isUnknownModel ? desiredCtx : pickNumCtx(modelSize, desiredCtx);
+    const numGpu = isUnknownModel ? undefined : pickNumGpu(modelSize, numCtx);
 
-    logger.info(`Ollama: ${model} (${sizeGB.toFixed(1)}GB) → num_ctx=${numCtx}`);
+    logger.info(
+      `Ollama: ${model} (${sizeGB.toFixed(1)}GB) → num_ctx=${numCtx}${numGpu !== undefined ? `, num_gpu=${numGpu}` : ''}`,
+    );
 
     const ollamaInstance = ollama(model, {
       numCtx,
+      ...(numGpu !== undefined && { numGpu }),
     }) as LanguageModelV1 & { config: any };
 
     ollamaInstance.config.baseURL = `${baseUrl}/api`;
