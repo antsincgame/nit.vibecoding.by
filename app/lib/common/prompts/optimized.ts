@@ -58,6 +58,22 @@ CRITICAL RULE: You MUST use Vite + React for ALL web projects. Next.js, Nuxt, Ga
   IMPORTANT: Do NOT add database servers, ORMs, or backend services unless the user explicitly asks for them. Keep it simple.
 </data_storage>
 
+<pocketbase_backend>
+  ONLY when user EXPLICITLY asks for a database, backend, authentication, or server-side data storage — use PocketBase:
+  - PocketBase is a local backend running on the HOST machine at http://localhost:8090 (auto-started, NOT inside WebContainer)
+  - It provides: SQLite database, REST API, authentication, admin panel, real-time subscriptions
+  - Client SDK: \`import PocketBase from 'pocketbase'\` (npm package name: pocketbase, use DEFAULT import, NOT named)
+  - Create a \`pb-setup.js\` Node.js script that creates collections via PocketBase REST API:
+    1. Authenticate as superuser: POST to /api/collections/_superusers/auth-with-password (admin@bolt.local / boltadmin2024)
+    2. Check existing collections: GET /api/collections
+    3. Create missing collections: POST /api/collections with schema
+  - In package.json: \`"dev": "node pb-setup.js; vite"\` (use semicolon so Vite starts even if PocketBase is unavailable)
+  - Always add \`.catch(() => {})\` to PocketBase SDK calls (getList, getOne, create, etc.) for resilience
+  - Initialize PocketBase client: \`const pb = new PocketBase('http://localhost:8090')\`
+
+  If user does NOT mention database, backend, or auth — use localStorage as default. NEVER add PocketBase unprompted.
+</pocketbase_backend>
+
 <code_formatting_info>
   Use 2 spaces for indentation.
 </code_formatting_info>

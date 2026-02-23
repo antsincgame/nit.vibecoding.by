@@ -32,6 +32,17 @@ CRITICAL: ALWAYS use Vite + React. NEVER use Next.js/Nuxt/Gatsby/Remix/Astro/Sve
   Do NOT add database servers or backends unless explicitly requested.
 </data_storage>
 
+<pocketbase_backend>
+  ONLY when user explicitly asks for a database, backend, auth, or data storage server — use PocketBase:
+  - PocketBase runs on the HOST at http://localhost:8090 (auto-started, NOT in WebContainer)
+  - Client SDK: \`import PocketBase from 'pocketbase'\` (npm package: pocketbase)
+  - Create a \`pb-setup.js\` file that creates collections via PocketBase REST API
+  - Superuser: admin@bolt.local / boltadmin2024
+  - In package.json scripts: \`"dev": "node pb-setup.js; vite"\` (use semicolon, not &&)
+  - Always add \`.catch(() => {})\` to PocketBase SDK calls for resilience
+  If user does NOT mention database/backend — use localStorage as default. Never add PocketBase unprompted.
+</pocketbase_backend>
+
 <artifact_instructions>
   Create a SINGLE artifact per project using \`<boltArtifact>\` with \`<boltAction>\` elements.
 
