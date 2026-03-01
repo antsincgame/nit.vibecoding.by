@@ -1,0 +1,69 @@
+@import "tailwindcss";
+@import "./neon.css";
+
+@theme {
+  --color-void-black: #0a0a0f;
+  --color-deep-space: #0d0d1a;
+  --color-nebula-dark: #12121f;
+  --color-nebula-light: #1a1a2e;
+
+  --color-gold-pure: #ffd700;
+  --color-gold-warm: #f4a836;
+  --color-gold-pale: #ffe066;
+
+  --color-neon-cyan: #00f5ff;
+  --color-neon-magenta: #ff00ff;
+  --color-neon-violet: #8b5cf6;
+  --color-neon-emerald: #00ff88;
+
+  --color-text-primary: #e8e8f0;
+  --color-text-secondary: #9898b0;
+  --color-text-muted: #686880;
+
+  --color-border-gold: oklch(0.82 0.17 90 / 0.2);
+  --color-border-subtle: oklch(1 0 0 / 0.08);
+
+  --color-surface: oklch(0.15 0.02 270 / 0.9);
+  --color-surface-hover: oklch(0.18 0.02 270 / 0.9);
+
+  --font-display: "Cinzel", serif;
+  --font-heading: "Montserrat", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+html {
+  background-color: var(--color-void-black);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(255, 215, 0, 0.3);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.3);
+}

@@ -1,0 +1,183 @@
+/* Neon Wave Future — Effects & Animations */
+
+.sacred-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='20' fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.12'/%3E%3Ccircle cx='50' cy='30' r='20' fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.12'/%3E%3Ccircle cx='67.3' cy='40' r='20' fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.12'/%3E%3Ccircle cx='67.3' cy='60' r='20' fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.12'/%3E%3Ccircle cx='50' cy='70' r='20' fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.12'/%3E%3Ccircle cx='32.7' cy='60' r='20' fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.12'/%3E%3Ccircle cx='32.7' cy='40' r='20' fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.12'/%3E%3C/svg%3E");
+  background-size: 120px 120px;
+}
+
+.hex-grid-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 115.47'%3E%3Cpolygon fill='none' stroke='%23ffd700' stroke-width='0.5' opacity='0.07' points='50 0 100 28.87 100 86.6 50 115.47 0 86.6 0 28.87'/%3E%3C/svg%3E");
+  background-size: 60px 69.28px;
+}
+
+/* Glow utilities */
+.glow-gold {
+  box-shadow:
+    0 0 20px rgba(255, 215, 0, 0.3),
+    0 0 40px rgba(255, 215, 0, 0.15),
+    0 0 60px rgba(255, 215, 0, 0.08);
+}
+
+.glow-gold-hover:hover {
+  box-shadow:
+    0 0 30px rgba(255, 215, 0, 0.5),
+    0 0 60px rgba(255, 215, 0, 0.3),
+    0 0 90px rgba(255, 215, 0, 0.15);
+}
+
+.glow-cyan {
+  box-shadow:
+    0 0 20px rgba(0, 245, 255, 0.3),
+    0 0 40px rgba(0, 245, 255, 0.15);
+}
+
+/* Gradient text */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #fff 0%, #ffd700 50%, #fff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-sacred {
+  background: linear-gradient(45deg, #ffd700, #ff6b35, #ff00ff, #00f5ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glass morphism */
+.glass {
+  background: linear-gradient(145deg, rgba(20, 20, 35, 0.9), rgba(10, 10, 20, 0.95));
+  border: 1px solid rgba(255, 215, 0, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+/* Animations */
+@keyframes aura-pulse {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.25);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(255, 215, 0, 0.45);
+    transform: scale(1.01);
+  }
+}
+
+@keyframes quantum-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes float-particle {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% {
+    transform: translateY(-100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes spiral-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-aura-pulse {
+  animation: aura-pulse 3s ease-in-out infinite;
+}
+
+.animate-quantum-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.25), transparent);
+  background-size: 200% 100%;
+  animation: quantum-shimmer 3s linear infinite;
+}
+
+.animate-float-particle {
+  animation: float-particle 8s ease-in-out infinite;
+}
+
+.animate-spiral {
+  animation: spiral-rotate 20s linear infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out both;
+}
+
+/* Button shimmer effect */
+.neon-btn-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.15), transparent);
+  transition: left 0.6s ease;
+  pointer-events: none;
+}
+
+button:hover .neon-btn-shimmer,
+a:hover .neon-btn-shimmer {
+  left: 100%;
+}
+
+/* Sacred card rotating aura */
+.sacred-card-aura {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent,
+    rgba(255, 215, 0, 0.06),
+    transparent,
+    rgba(255, 215, 0, 0.03),
+    transparent
+  );
+  animation: spiral-rotate 12s linear infinite;
+  pointer-events: none;
+}
+
+/* Golden spiral decorative element */
+.golden-spiral::before {
+  content: "";
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  background: conic-gradient(from 0deg, transparent, rgba(255, 215, 0, 0.15), transparent);
+  border-radius: 50%;
+  animation: spiral-rotate 20s linear infinite;
+  pointer-events: none;
+}
+
+/* Status indicators */
+.status-online {
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+}
+
+.status-offline {
+  box-shadow: 0 0 8px rgba(255, 60, 60, 0.6);
+}
