@@ -13,6 +13,7 @@ import { useVersionHistory } from "~/features/projects/hooks/useVersionHistory";
 import { useKeyboardShortcuts } from "~/lib/hooks/useKeyboardShortcuts";
 import { useAgentStore } from "~/lib/stores/agentStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
+import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { useUIStore } from "~/lib/stores/uiStore";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { cn } from "~/lib/utils/cn";
@@ -106,7 +107,12 @@ function Sidebar() {
 export default function Home() {
   useAgentDiscovery();
 
+  const language = useSettingsStore((s) => s.language);
   const { sidebarOpen, settingsOpen, toggleSidebar, toggleSettings } = useUIStore();
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const shortcuts = useMemo(
     () => ({

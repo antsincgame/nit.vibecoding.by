@@ -6,55 +6,80 @@ CRITICAL — LOCAL MODEL RULES (follow strictly):
 - Do NOT add "..." or truncate any file — every file must be 100% complete.
 - Do NOT output partial files. If a file is started, it MUST be finished.
 - If output is long, keep going. Never summarize or abbreviate code.
-- Do NOT add explanations, comments about what you did, or any prose. ONLY code with file markers.
+- Do NOT add explanations, comments about what you did, or any prose OUTSIDE the artifact tags.
 </critical_rules>`;
 
 const FORMAT_RULES = `
 <format_rules>
-OUTPUT FORMAT — MANDATORY:
-Every file MUST start with a marker line in this EXACT format:
-// === FILE: path/to/file.ext ===
+OUTPUT FORMAT — MANDATORY (use the nitArtifact XML protocol):
 
-Then the file content follows on the next lines.
+Wrap ALL generated files inside a single <nitArtifact> block.
+Each file goes inside a <nitAction type="file" filePath="..."> tag.
+
+STRUCTURE:
+<nitArtifact id="project" title="Project Title">
+<nitAction type="file" filePath="App.tsx">
+(complete file content)
+</nitAction>
+<nitAction type="file" filePath="index.css">
+(complete file content)
+</nitAction>
+</nitArtifact>
 
 RULES:
-- Output ONLY code with file markers. No explanations, no markdown, no commentary.
-- Do NOT wrap code in markdown code blocks (no triple backticks).
-- Do NOT add any text before the first // === FILE: marker.
-- Do NOT add any text after the last file's content.
+- The nitArtifact block MUST contain ALL project files.
+- Each nitAction MUST have type="file" and a filePath attribute.
+- Do NOT wrap code in markdown code blocks (no triple backticks) inside nitAction tags.
+- Do NOT add any text or prose INSIDE the nitArtifact block, except nitAction elements.
+- You MAY add a BRIEF (1-2 sentence) explanation BEFORE the nitArtifact opening tag.
 - Every project MUST have at least one file.
 - Use forward slashes in paths: components/Button.tsx
 - All file paths are ROOT-relative. Do NOT use src/ prefix.
+
+FALLBACK FORMAT (if you cannot use XML tags):
+// === FILE: path/to/file.ext ===
+(file content here)
 </format_rules>`;
 
 const FORMAT_EXAMPLE = `
 <example>
-// === FILE: index.html ===
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>App</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body class="bg-gray-900 text-white min-h-screen">
-  <div id="root"></div>
-  <script type="module" src="main.js"></script>
-</body>
-</html>
+Here is a starter app with Tailwind styling.
 
-// === FILE: style.css ===
-body { font-family: system-ui, sans-serif; }
+<nitArtifact id="starter" title="Starter App">
+<nitAction type="file" filePath="App.tsx">
+import { useState } from "react";
 
-// === FILE: main.js ===
-document.getElementById('root').innerHTML = '<h1>Hello</h1>';
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <button
+      onClick={() => setCount((c) => c + 1)}
+      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+    >
+      Count: {count}
+    </button>
+  );
+}
+
+export default function App() {
+  return (
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <Counter />
+    </div>
+  );
+}
+</nitAction>
+<nitAction type="file" filePath="index.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+</nitAction>
+</nitArtifact>
 </example>`;
 
 const REACT_RULES = `
 <project_type>
-You are generating a React + TypeScript project for Sandpack preview.
+You are generating a React + TypeScript project for browser preview.
 
 REQUIRED files (always include ALL of them):
 1. App.tsx — THE ONLY component file. Contains ALL components and logic. Default export required.
@@ -67,11 +92,11 @@ CRITICAL SINGLE-FILE RULE:
 - This prevents import resolution errors in the preview environment.
 
 REQUIRED STRUCTURE of App.tsx:
-  import "./index.css";
-  
+  import { useState } from "react";
+
   function Header() { ... }
   function Card({ title }: { title: string }) { ... }
-  
+
   export default function App() {
     return (
       <div>
@@ -142,15 +167,19 @@ const QUALITY_RULES = `
 
 const REMINDER = `
 <reminder>
-FINAL REMINDER — Your output must follow this format EXACTLY:
+FINAL REMINDER — Your output must use the nitArtifact protocol:
+
+<nitArtifact id="..." title="...">
+<nitAction type="file" filePath="filename.ext">
+(complete file content)
+</nitAction>
+</nitArtifact>
+
+If you cannot produce XML tags, fall back to:
 // === FILE: path/to/file.ext ===
 (file content here)
 
-// === FILE: path/to/another.ext ===
-(file content here)
-
-NO markdown. NO explanations. NO backticks. NO think blocks. ONLY file markers and code.
-Write EVERY file completely. Do NOT stop early. Do NOT truncate.
+NO markdown fences. NO think blocks. Write EVERY file completely. Do NOT stop early.
 </reminder>`;
 
 export function buildSystemPrompt(projectType: string): string {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { AIAgent, AgentSelection } from "@shared/types/agent";
+import { useSettingsStore } from "./settingsStore";
 
 type AgentState = {
   agents: AIAgent[];
@@ -18,7 +19,11 @@ type AgentActions = {
 
 export const useAgentStore = create<AgentState & AgentActions>((set, get) => ({
   agents: [],
-  selection: { agentId: "", modelId: "", temperature: 0.3 },
+  selection: {
+    agentId: "",
+    modelId: "",
+    temperature: useSettingsStore.getState().defaultTemperature,
+  },
   isDiscovering: false,
   error: null,
 

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
+import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { parseGeneratedCode, detectLanguage } from "~/lib/utils/codeParser";
 import { formatAllFiles } from "~/lib/utils/formatCode";
 import { exportProjectAsZip, downloadBlob } from "~/features/projects/service/exportService";
@@ -10,12 +11,15 @@ import { EditorTabs } from "./EditorTabs";
 import { LivePreview } from "~/components/preview/LivePreview";
 import { NeonButton } from "~/components/ui/NeonButton";
 import { cn } from "~/lib/utils/cn";
+import { useT } from "~/lib/utils/i18n";
 
 type ViewMode = "editor" | "preview" | "split";
 
 export function Workbench() {
   const { messages, streaming, generatedCode, setGeneratedCode } = useChatStore();
   const { currentProject, versions } = useProjectStore();
+  const editorFontSize = useSettingsStore((s) => s.editorFontSize);
+  const t = useT();
   const [activeFile, setActiveFile] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [isFormatting, setIsFormatting] = useState(false);
@@ -85,6 +89,43 @@ export function Workbench() {
     if (content) navigator.clipboard.writeText(content);
   }, [files, effectiveActiveFile]);
 
+  const handleCreateFile = useCallback(
+    (path: string) => {
+      if (files[path] !== undefined) return;
+      setGeneratedCode({ ...files, [path]: "" });
+      setActiveFile(path);
+    },
+    [files, setGeneratedCode],
+  );
+
+  const handleDeleteFile = useCallback(
+    (path: string) => {
+      const updated = { ...files };
+      delete updated[path];
+      setGeneratedCode(updated);
+      if (effectiveActiveFile === path) {
+        const remaining = Object.keys(updated);
+        setActiveFile(remaining[0] ?? "");
+      }
+    },
+    [files, effectiveActiveFile, setGeneratedCode],
+  );
+
+  const handleRenameFile = useCallback(
+    (oldPath: string, newPath: string) => {
+      if (files[newPath] !== undefined || files[oldPath] === undefined) return;
+      const content = files[oldPath]!;
+      const updated = { ...files };
+      delete updated[oldPath];
+      updated[newPath] = content;
+      setGeneratedCode(updated);
+      if (effectiveActiveFile === oldPath) {
+        setActiveFile(newPath);
+      }
+    },
+    [files, effectiveActiveFile, setGeneratedCode],
+  );
+
   const hasFiles = fileList.length > 0;
 
   return (
@@ -92,16 +133,16 @@ export function Workbench() {
       <div className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-border-subtle bg-deep-space/40">
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-text-muted font-mono">
-            {hasFiles ? `${fileList.length} files` : "No files"}
+            {hasFiles ? `${fileList.length} ${t("workbench.files")}` : t("workbench.no_files")}
           </span>
           {hasFiles && (
             <>
-              <NeonButton variant="ghost" size="sm" onClick={handleCopy}>Copy</NeonButton>
+              <NeonButton variant="ghost" size="sm" onClick={handleCopy}>{t("workbench.copy")}</NeonButton>
               <NeonButton variant="ghost" size="sm" onClick={handleFormat} disabled={isFormatting}>
-                {isFormatting ? "..." : "Format"}
+                {isFormatting ? "..." : t("workbench.format")}
               </NeonButton>
               {currentProject && (
-                <NeonButton variant="ghost" size="sm" onClick={handleExport}>Export ZIP</NeonButton>
+                <NeonButton variant="ghost" size="sm" onClick={handleExport}>{t("workbench.export")}</NeonButton>
               )}
             </>
           )}
@@ -127,7 +168,14 @@ export function Workbench() {
           <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden">
             {hasFiles && (
               <div className="w-40 flex-shrink-0 border-r border-border-subtle overflow-y-auto bg-deep-space/20">
-                <FileTree files={files} activeFile={effectiveActiveFile} onSelectFile={setActiveFile} />
+                <FileTree
+                  files={files}
+                  activeFile={effectiveActiveFile}
+                  onSelectFile={setActiveFile}
+                  onCreateFile={handleCreateFile}
+                  onDeleteFile={handleDeleteFile}
+                  onRenameFile={handleRenameFile}
+                />
               </div>
             )}
 
@@ -148,12 +196,13 @@ export function Workbench() {
                     language={detectLanguage(effectiveActiveFile)}
                     path={effectiveActiveFile}
                     onChange={handleCodeChange}
+                    fontSize={editorFontSize}
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center">
                     <div className="text-center space-y-2">
                       <div className="text-2xl opacity-20">{"</>"}</div>
-                      <p className="text-text-muted text-xs">Code will appear here</p>
+                      <p className="text-text-muted text-xs">{t("workbench.code_here")}</p>
                     </div>
                   </div>
                 )}

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { useAgentStore } from "~/lib/stores/agentStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
+import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { useStreaming } from "~/lib/hooks/useStreaming";
 import { useProjects } from "~/features/projects/hooks/useProjects";
 import { useVersionHistory } from "~/features/projects/hooks/useVersionHistory";
@@ -9,6 +10,7 @@ import { parseGeneratedCode } from "~/lib/utils/codeParser";
 import { MessageList } from "./MessageList";
 import { PromptInput } from "./PromptInput";
 import { GlowText } from "~/components/ui/GlowText";
+import { useT } from "~/lib/utils/i18n";
 
 const PROVIDER_MAP: Record<string, string> = {
   ollama: "Ollama",
@@ -28,6 +30,7 @@ export function ChatPanel() {
   const lastPromptRef = useRef("");
   const lastOptionsRef = useRef({ model: "", agentId: "", temperature: 0.3 });
 
+  const t = useT();
   const hasAgent = agents.some((a) => a.id === selection.agentId && a.status === "online");
 
   useEffect(() => {
@@ -40,13 +43,15 @@ export function ChatPanel() {
 
       const project = useProjectStore.getState().currentProject;
       if (project) {
-        saveVersion({
-          code,
-          prompt: lastPromptRef.current,
-          model: lastOptionsRef.current.model,
-          agentId: lastOptionsRef.current.agentId,
-          temperature: lastOptionsRef.current.temperature,
-        });
+        if (useSettingsStore.getState().autoSave) {
+          saveVersion({
+            code,
+            prompt: lastPromptRef.current,
+            model: lastOptionsRef.current.model,
+            agentId: lastOptionsRef.current.agentId,
+            temperature: lastOptionsRef.current.temperature,
+          });
+        }
         useChatStore.getState().saveProjectChat(project.id);
       }
     }
@@ -68,15 +73,18 @@ export function ChatPanel() {
       temperature: selection.temperature,
     };
 
+    const { defaultProjectType } = useSettingsStore.getState();
+
     if (!currentProject) {
       const projectName = prompt.length > 50 ? prompt.slice(0, 50) + "..." : prompt;
-      await createProject({ name: projectName, description: "", type: "react" });
+      await createProject({ name: projectName, description: "", type: defaultProjectType });
     }
 
     generate(prompt, {
       provider,
       model: selection.modelId,
       temperature: selection.temperature,
+      projectType: currentProject?.type ?? defaultProjectType,
     });
   };
 
@@ -88,15 +96,13 @@ export function ChatPanel() {
             <GlowText as="h2" variant="gold" className="text-2xl mb-3">
               NIT.BY
             </GlowText>
-            <p className="text-text-secondary text-sm mb-6 leading-relaxed">
-              Опишите приложение на естественном языке.
-              <br />
-              Локальная LLM сгенерирует код в реальном времени.
+            <p className="text-text-secondary text-sm mb-6 leading-relaxed whitespace-pre-line">
+              {t("chat.welcome.subtitle")}
             </p>
             {!hasAgent && (
               <div className="glass rounded-lg p-3 mb-4 border border-red-400/20">
                 <p className="text-red-400 text-xs">
-                  Нет доступных AI агентов. Запустите Ollama или LM Studio.
+                  {t("chat.no_agents")}
                 </p>
               </div>
             )}

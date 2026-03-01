@@ -42,8 +42,32 @@ function hasRenderCall(code: string): boolean {
 }
 
 const ERROR_HANDLER_SCRIPT = `<script>
-window.onerror=function(m,u,l){var d=document.createElement('div');d.style.cssText='position:fixed;inset:0;background:#1a1a2e;color:#ff4444;padding:24px;font-family:monospace;z-index:99999;overflow:auto;font-size:14px;';d.innerHTML='<h3 style="color:#ffd700;margin:0 0 12px">Runtime Error</h3><pre style="white-space:pre-wrap;word-break:break-word">'+String(m).replace(/</g,'&lt;')+'\\nLine: '+l+'</pre>';document.body.appendChild(d)};
-window.addEventListener('unhandledrejection',function(e){window.onerror(e.reason?.message||String(e.reason),'',0)});
+(function(){
+  var origLog=console.log,origWarn=console.warn,origErr=console.error,origInfo=console.info;
+  function send(level,args){
+    try{parent.postMessage({type:'preview-console',level:level,args:Array.from(args).map(function(a){
+      try{return typeof a==='object'?JSON.stringify(a,null,2):String(a)}catch(e){return String(a)}
+    })},'*')}catch(e){}
+  }
+  console.log=function(){send('log',arguments);origLog.apply(console,arguments)};
+  console.warn=function(){send('warn',arguments);origWarn.apply(console,arguments)};
+  console.error=function(){send('error',arguments);origErr.apply(console,arguments)};
+  console.info=function(){send('info',arguments);origInfo.apply(console,arguments)};
+
+  window.onerror=function(m,u,l,c){
+    var loc=u?u.replace(/^blob:[^/]+\\/[^/]+\\//,''):'';
+    var pos=l?(loc?loc+':':'')+'line '+l+(c?':'+c:''):'';
+    var msg=String(m).replace(/^Uncaught\\s*/,'');
+    parent.postMessage({type:'preview-error',message:msg,pos:pos},'*');
+    var d=document.createElement('div');
+    d.style.cssText='position:fixed;inset:0;background:#1a1a2e;color:#ff4444;padding:24px;font-family:monospace;z-index:99999;overflow:auto;font-size:14px;';
+    d.innerHTML='<h3 style="color:#ffd700;margin:0 0 12px">Runtime Error</h3>'
+      +'<p style="color:#ff9999;margin:0 0 8px;font-size:12px">'+(pos||'')+'</p>'
+      +'<pre style="white-space:pre-wrap;word-break:break-word">'+msg.replace(/</g,'&lt;')+'</pre>';
+    document.body.appendChild(d);
+  };
+  window.addEventListener('unhandledrejection',function(e){window.onerror(e.reason?.message||String(e.reason),'',0)});
+})();
 <\/script>`;
 
 function assembleReactHtml(files: Record<string, string>): string {

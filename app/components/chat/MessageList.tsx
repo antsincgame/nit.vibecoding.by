@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "~/lib/utils/cn";
-import { extractChatText } from "~/lib/utils/codeParser";
+import { extractChatText, extractGeneratedFileNames } from "~/lib/utils/codeParser";
+import { useT } from "~/lib/utils/i18n";
 import type { ChatMessage } from "@shared/types/message";
 
 interface MessageListProps {
@@ -8,13 +9,67 @@ interface MessageListProps {
   isStreaming: boolean;
 }
 
+function StreamingStatus({ content }: { content: string }) {
+  const t = useT();
+  const fileNames = useMemo(() => extractGeneratedFileNames(content), [content]);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="inline-block w-2 h-2 rounded-full bg-neon-cyan animate-pulse" />
+        <span className="text-xs text-neon-cyan">{t("chat.generating")}</span>
+      </div>
+      {fileNames.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {fileNames.map((name) => (
+            <span
+              key={name}
+              className="inline-block px-1.5 py-0.5 text-[9px] font-mono bg-deep-space/60 border border-border-subtle rounded text-text-secondary"
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FileSummary({ content }: { content: string }) {
+  const t = useT();
+  const fileNames = useMemo(() => extractGeneratedFileNames(content), [content]);
+  if (fileNames.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs text-text-secondary">
+        {t("chat.code_generated")} ({fileNames.length}):
+      </span>
+      <div className="flex flex-wrap gap-1">
+        {fileNames.map((name) => (
+          <span
+            key={name}
+            className="inline-block px-1.5 py-0.5 text-[9px] font-mono bg-neon-emerald/10 border border-neon-emerald/20 rounded text-neon-emerald"
+          >
+            {name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStreaming: boolean }) {
   const isUser = message.role === "user";
+  const t = useT();
 
   const displayText = useMemo(() => {
     if (isUser) return message.content;
     return extractChatText(message.content);
   }, [message.content, isUser]);
+
+  const isThinking = isStreaming && !displayText;
+  const isCodeOnly = !isStreaming && !displayText && message.content.length > 0;
 
   return (
     <div
@@ -33,11 +88,22 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
       >
         {isUser ? (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        ) : isStreaming && isThinking ? (
+          <StreamingStatus content={message.content} />
+        ) : isCodeOnly ? (
+          <FileSummary content={message.content} />
         ) : (
-          <div className="text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[40vh] overflow-y-auto overflow-x-hidden">
-            {displayText}
+          <div className="space-y-2">
+            {displayText && (
+              <div className="text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[40vh] overflow-y-auto overflow-x-hidden">
+                {displayText}
+              </div>
+            )}
+            {!isStreaming && message.content.length > 0 && (
+              <FileSummary content={message.content} />
+            )}
             {isStreaming && (
-              <span className="inline-block w-2 h-4 ml-0.5 bg-gold-pure/80 animate-pulse" />
+              <StreamingStatus content={message.content} />
             )}
           </div>
         )}

@@ -153,11 +153,36 @@ function stripPreamble(text: string): string {
   return text;
 }
 
+const NIT_ACTION_RE = /<nitAction\s+type="file"\s+filePath="([^"]+)"\s*>([\s\S]*?)<\/nitAction>/gi;
+const BOLT_ACTION_RE = /<boltAction\s+type="file"\s+filePath="([^"]+)"\s*>([\s\S]*?)<\/boltAction>/gi;
+
+function parseArtifactProtocol(text: string): Record<string, string> {
+  const files: Record<string, string> = {};
+
+  for (const re of [NIT_ACTION_RE, BOLT_ACTION_RE]) {
+    re.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+      const filePath = match[1]?.trim();
+      const content = match[2]?.trim();
+      if (filePath && content) {
+        files[filePath] = content;
+      }
+    }
+    if (Object.keys(files).length > 0) return files;
+  }
+
+  return files;
+}
+
 export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   if (!rawOutput.trim()) return {};
 
   const cleaned = stripPreamble(stripThinkBlocks(rawOutput)).trim();
   if (!cleaned) return {};
+
+  const artifactFiles = parseArtifactProtocol(cleaned);
+  if (Object.keys(artifactFiles).length > 0) return artifactFiles;
 
   const unwrapped = unwrapSingleMarkdownBlock(cleaned);
   const lines = unwrapped.split("\n");
@@ -173,8 +198,17 @@ export function parseGeneratedCode(rawOutput: string): Record<string, string> {
 }
 
 export function extractChatText(rawContent: string): string {
+  const hasUnclosedThink = UNCLOSED_THINK_RE.test(
+    rawContent.replace(THINK_BLOCK_RE, ""),
+  );
+
   let cleaned = rawContent.replace(THINK_BLOCK_RE, "");
   cleaned = cleaned.replace(UNCLOSED_THINK_RE, "");
+
+  cleaned = cleaned.replace(/<nitArtifact[\s\S]*?<\/nitArtifact>/gi, "");
+  cleaned = cleaned.replace(/<nitArtifact[\s\S]*$/i, "");
+  cleaned = cleaned.replace(/<boltArtifact[\s\S]*?<\/boltArtifact>/gi, "");
+  cleaned = cleaned.replace(/<boltArtifact[\s\S]*$/i, "");
 
   const markerIdx = cleaned.search(/\/\/\s*===\s*FILE:\s*/);
   if (markerIdx > 0) {
@@ -183,12 +217,38 @@ export function extractChatText(rawContent: string): string {
     cleaned = "";
   }
 
-  cleaned = cleaned.replace(/```\w*[\s:][^\n]*\n[\s\S]*?```/g, "");
-  cleaned = cleaned.replace(/```\w*\n[\s\S]*?```/g, "");
+  cleaned = cleaned.replace(/```[\w.:/-]*\n[\s\S]*?```/g, "");
   cleaned = cleaned.replace(/```[\s\S]*$/g, "");
 
+  cleaned = cleaned.replace(/<!DOCTYPE[\s\S]*?(?:<\/html>|$)/gi, "");
+  cleaned = cleaned.replace(/<html[\s\S]*?(?:<\/html>|$)/gi, "");
+
   cleaned = cleaned.trim();
-  return cleaned || "Code generated";
+
+  if (!cleaned && hasUnclosedThink) return "";
+  return cleaned || "";
+}
+
+export function extractGeneratedFileNames(rawContent: string): string[] {
+  const cleaned = stripPreamble(stripThinkBlocks(rawContent)).trim();
+  if (!cleaned) return [];
+
+  const names: string[] = [];
+  for (const line of cleaned.split("\n")) {
+    const marker = tryFileMarker(line);
+    if (marker) names.push(marker);
+
+    const md1 = MARKDOWN_BLOCK_START.exec(line.trim());
+    if (md1?.[2]?.includes(".")) names.push(md1[2].trim());
+
+    const md2 = MARKDOWN_BLOCK_START_COLON.exec(line.trim());
+    if (md2?.[2]?.includes(".")) names.push(md2[2].trim());
+
+    const nitMatch = /filePath="([^"]+)"/.exec(line);
+    if (nitMatch?.[1]) names.push(nitMatch[1]);
+  }
+
+  return [...new Set(names)];
 }
 
 export function detectLanguage(filePath: string): string {

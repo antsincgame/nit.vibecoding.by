@@ -8,6 +8,7 @@ interface CodeEditorProps {
   readOnly?: boolean;
   onChange?: (value: string) => void;
   path?: string;
+  fontSize?: number;
 }
 
 export function CodeEditor({
@@ -16,6 +17,7 @@ export function CodeEditor({
   readOnly = false,
   onChange,
   path,
+  fontSize = 13,
 }: CodeEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
@@ -25,7 +27,7 @@ export function CodeEditor({
     monaco.editor.setTheme(NEON_THEME_NAME);
 
     editor.updateOptions({
-      fontSize: 13,
+      fontSize,
       fontFamily: "'JetBrains Mono', monospace",
       fontLigatures: true,
       lineHeight: 1.6,
