@@ -148,6 +148,7 @@ function stripPreamble(text: string): string {
     if (tryFileMarker(line)) return lines.slice(i).join("\n");
     if (/^```\w*[\s:]/.test(line) || /^```\w*$/.test(line)) return lines.slice(i).join("\n");
     if (line.startsWith("<!DOCTYPE") || line.startsWith("<html")) return lines.slice(i).join("\n");
+    if (/^<(nit|bolt)Artifact\b/i.test(line)) return lines.slice(i).join("\n");
   }
 
   return text;
@@ -175,6 +176,8 @@ function parseArtifactProtocol(text: string): Record<string, string> {
   return files;
 }
 
+const UNCLOSED_ARTIFACT_RE = /^<(nit|bolt)Artifact\b/i;
+
 export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   if (!rawOutput.trim()) return {};
 
@@ -183,6 +186,9 @@ export function parseGeneratedCode(rawOutput: string): Record<string, string> {
 
   const artifactFiles = parseArtifactProtocol(cleaned);
   if (Object.keys(artifactFiles).length > 0) return artifactFiles;
+
+  // Artifact block opened but no nitAction has closed yet — still streaming, don't fallback
+  if (UNCLOSED_ARTIFACT_RE.test(cleaned)) return {};
 
   const unwrapped = unwrapSingleMarkdownBlock(cleaned);
   const lines = unwrapped.split("\n");

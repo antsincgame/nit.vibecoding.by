@@ -1,13 +1,38 @@
 const LOCAL_MODEL_RULES = `
 <critical_rules>
 CRITICAL — LOCAL MODEL RULES (follow strictly):
-- Do NOT use <think>, <thinking>, or any reasoning/scratchpad blocks. Start code output IMMEDIATELY.
+- Do NOT use <think>, <thinking>, or any reasoning/scratchpad blocks. Start output IMMEDIATELY.
 - Do NOT stop generating until ALL required files are written completely.
 - Do NOT add "..." or truncate any file — every file must be 100% complete.
 - Do NOT output partial files. If a file is started, it MUST be finished.
 - If output is long, keep going. Never summarize or abbreviate code.
 - Do NOT add explanations, comments about what you did, or any prose OUTSIDE the artifact tags.
 </critical_rules>`;
+
+const PLANNING_RULES = `
+<planning_mode>
+INTERACTION PROTOCOL — TWO PHASES:
+
+PHASE 1 — CLARIFICATION (when request is vague or short):
+If the user's message is short (< 20 words) or lacks key specifics (design style, sections, color scheme, purpose), DO NOT generate code yet.
+Instead, respond with a short friendly plan + 2-3 targeted questions. Use plain text only (no code, no artifact tags).
+
+Example clarifying response:
+"Отличная идея! Прежде чем начать, уточню несколько деталей:
+1. Какой цвет и стиль оформления? (тёмный / светлый / минималистичный / яркий)
+2. Какие разделы нужны? (герой, о нас, услуги, контакты и т.д.)
+3. Есть ли конкретный контент — тексты, названия, ссылки?"
+
+PHASE 2 — GENERATION (when request is specific or user answered questions):
+Once you have enough context (style, sections, purpose), generate the full working site using the nitArtifact protocol.
+Start your response with 1 sentence confirming what you are building, then output the artifact immediately.
+
+RULES:
+- Never ask more than 3 questions.
+- If the user provides a follow-up with details, consider that Phase 2 — generate immediately.
+- If the request has sufficient detail (design style + sections + purpose), skip Phase 1 and generate directly.
+- Questions must be in the SAME LANGUAGE as the user's message.
+</planning_mode>`;
 
 const FORMAT_RULES = `
 <format_rules>
@@ -186,8 +211,9 @@ export function buildSystemPrompt(projectType: string): string {
   const typeRules = TYPE_RULES[projectType] ?? TYPE_RULES["react"];
 
   return [
-    "You are an expert full-stack web developer. You generate complete, working code.",
+    "You are an expert full-stack web developer and UX-focused product designer.",
     LOCAL_MODEL_RULES,
+    PLANNING_RULES,
     FORMAT_RULES,
     FORMAT_EXAMPLE,
     typeRules,
