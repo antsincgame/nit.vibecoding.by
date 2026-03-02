@@ -97,6 +97,8 @@ export function useStreaming() {
 
       setStreaming({ isStreaming: true, currentContent: "", error: null });
 
+      let accumulated = "";
+
       try {
         const allMessages = buildMessageHistory();
 
@@ -123,7 +125,6 @@ export function useStreaming() {
         if (!reader) throw new Error("No response body");
 
         const decoder = new TextDecoder();
-        let accumulated = "";
         let sseBuffer = "";
 
         while (true) {
@@ -153,7 +154,12 @@ export function useStreaming() {
 
         const errorMessage = err instanceof Error ? err.message : "Generation failed";
         setStreaming({ isStreaming: false, error: errorMessage });
-        updateLastAssistantMessage(`Error: ${errorMessage}`);
+
+        // Keep whatever the model managed to generate — don't overwrite with error text.
+        // Only replace if model sent nothing at all.
+        if (!accumulated) {
+          updateLastAssistantMessage("");
+        }
       } finally {
         abortRef.current = null;
       }

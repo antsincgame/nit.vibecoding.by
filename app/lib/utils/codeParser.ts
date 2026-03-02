@@ -177,12 +177,16 @@ function parseArtifactProtocol(text: string): Record<string, string> {
 }
 
 const UNCLOSED_ARTIFACT_RE = /^<(nit|bolt)Artifact\b/i;
+const ERROR_MESSAGE_RE = /^(Error:|TypeError:|ReferenceError:|SyntaxError:|terminated$)/i;
 
 export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   if (!rawOutput.trim()) return {};
 
   const cleaned = stripPreamble(stripThinkBlocks(rawOutput)).trim();
   if (!cleaned) return {};
+
+  // Short error/status strings must never be treated as code files
+  if (cleaned.length < 30 && ERROR_MESSAGE_RE.test(cleaned)) return {};
 
   const artifactFiles = parseArtifactProtocol(cleaned);
   if (Object.keys(artifactFiles).length > 0) return artifactFiles;
