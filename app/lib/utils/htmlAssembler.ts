@@ -24,9 +24,17 @@ function escapeForScript(code: string): string {
   return code.replace(/<\/script/gi, "<\\/script");
 }
 
+function escapeForStyle(code: string): string {
+  return code.replace(/<\/style/gi, "<\\/style");
+}
+
 function stripImportsAndExports(code: string): string {
   return code
+    // multi-line named/default imports: import { ... } from "..."
+    .replace(/^import\s[\s\S]*?from\s+["'][^"']+["'];?\s*\n/gm, "")
+    // single-line imports with destructuring or default
     .replace(/^import\s+.*from\s+["'][^"']+["'];?\s*$/gm, "")
+    // side-effect imports: import "..."
     .replace(/^import\s+["'][^"']+["'];?\s*$/gm, "")
     .replace(/^export\s+default\s+/gm, "")
     .replace(/^export\s+(?=function|const|let|class|type|interface|enum)/gm, "");
@@ -95,7 +103,7 @@ function assembleReactHtml(files: Record<string, string>): string {
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"><\/script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-${escapeForScript(css)}
+${escapeForStyle(css)}
 </style>
 ${ERROR_HANDLER_SCRIPT}
 </head>

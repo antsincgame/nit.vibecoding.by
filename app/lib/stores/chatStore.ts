@@ -10,7 +10,7 @@ type ChatState = {
   messages: ChatMessage[];
   streaming: StreamingState;
   generatedCode: Record<string, string>;
-  projectCache: Map<string, ProjectChatSnapshot>;
+  projectCache: Record<string, ProjectChatSnapshot>;
 };
 
 type ChatActions = {
@@ -34,7 +34,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   messages: [],
   streaming: INITIAL_STREAMING,
   generatedCode: {},
-  projectCache: new Map(),
+  projectCache: {},
 
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
@@ -64,15 +64,18 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     }),
 
   saveProjectChat: (projectId) => {
-    const { messages, generatedCode, projectCache } = get();
+    const { messages, generatedCode } = get();
     if (messages.length === 0 && Object.keys(generatedCode).length === 0) return;
-    const next = new Map(projectCache);
-    next.set(projectId, { messages: [...messages], generatedCode: { ...generatedCode } });
-    set({ projectCache: next });
+    set((state) => ({
+      projectCache: {
+        ...state.projectCache,
+        [projectId]: { messages: [...messages], generatedCode: { ...generatedCode } },
+      },
+    }));
   },
 
   loadProjectChat: (projectId) => {
-    const cached = get().projectCache.get(projectId);
+    const cached = get().projectCache[projectId];
     if (cached) {
       set({
         messages: cached.messages,

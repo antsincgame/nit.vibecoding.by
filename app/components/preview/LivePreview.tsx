@@ -31,13 +31,12 @@ const STREAMING_DEBOUNCE_MS = 1500;
 const IDLE_DEBOUNCE_MS = 300;
 const MAX_CONSOLE_ENTRIES = 100;
 
-let consoleIdCounter = 0;
-
 export function LivePreview({ files, isStreaming = false }: LivePreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const blobUrlRef = useRef("");
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const lastHtmlRef = useRef("");
+  const consoleIdRef = useRef(0);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewError, setPreviewError] = useState<PreviewError | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
@@ -66,7 +65,7 @@ export function LivePreview({ files, isStreaming = false }: LivePreviewProps) {
 
       if (data.type === "preview-console") {
         const entry: ConsoleEntry = {
-          id: ++consoleIdCounter,
+          id: ++consoleIdRef.current,
           level: data.level ?? "log",
           text: Array.isArray(data.args) ? data.args.join(" ") : String(data.args),
         };
@@ -111,20 +110,6 @@ export function LivePreview({ files, isStreaming = false }: LivePreviewProps) {
   }, [files, isStreaming, updatePreview]);
 
   useEffect(() => {
-    if (!isStreaming && Object.keys(files).length > 0) {
-      try {
-        const html = assemblePreviewHtml(files);
-        updatePreview(html);
-      } catch (err) {
-        setPreviewError({
-          message: err instanceof Error ? err.message : "Assembly failed",
-          pos: "",
-        });
-      }
-    }
-  }, [isStreaming]);
-
-  useEffect(() => {
     return () => {
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     };
@@ -143,6 +128,7 @@ export function LivePreview({ files, isStreaming = false }: LivePreviewProps) {
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }, []);
 
   const hasFiles = Object.keys(files).length > 0;
@@ -168,6 +154,8 @@ export function LivePreview({ files, isStreaming = false }: LivePreviewProps) {
                 viewport.label === vp.label ? "text-gold-pure" : "text-text-muted hover:text-text-primary",
               )}
               title={vp.label}
+              aria-label={vp.label}
+              aria-pressed={viewport.label === vp.label}
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
                 <path d={vp.icon} strokeLinecap="round" strokeLinejoin="round" />
@@ -195,6 +183,7 @@ export function LivePreview({ files, isStreaming = false }: LivePreviewProps) {
             disabled={!hasFiles}
             className="p-1 text-text-muted hover:text-text-primary transition-colors disabled:opacity-30"
             title="Refresh"
+            aria-label="Refresh preview"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M2 8a6 6 0 0 1 10.3-4.2L14 2v4h-4l1.7-1.7A4.5 4.5 0 1 0 12.5 8" strokeLinecap="round" strokeLinejoin="round" />
@@ -205,6 +194,7 @@ export function LivePreview({ files, isStreaming = false }: LivePreviewProps) {
             disabled={!hasFiles}
             className="p-1 text-text-muted hover:text-text-primary transition-colors disabled:opacity-30"
             title="Open in new tab"
+            aria-label="Open preview in new tab"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3M10 2h4v4M7 9l7-7" strokeLinecap="round" strokeLinejoin="round" />

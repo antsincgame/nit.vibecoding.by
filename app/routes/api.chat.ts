@@ -1,30 +1,41 @@
+import { z } from "zod";
 import { streamText } from "~/lib/server/llm/stream-text";
 
-export async function action({ request }: { request: Request }) {
-  const body = await request.json();
-  const { messages, provider, model, projectType, temperature, maxTokens } = body as {
-    messages: Array<{ id: string; role: string; content: string }>;
-    provider: string;
-    model: string;
-    projectType?: string;
-    temperature?: number;
-    maxTokens?: number;
-  };
+const ChatRequestSchema = z.object({
+  provider: z.string().min(1),
+  model: z.string().min(1),
+  messages: z
+    .array(
+      z.object({
+        id: z.string(),
+        role: z.enum(["user", "assistant", "system"]),
+        content: z.string().max(128_000),
+      }),
+    )
+    .min(1)
+    .max(200),
+  projectType: z.enum(["react", "html", "vue"]).optional().default("react"),
+  temperature: z.number().min(0).max(2).optional().default(0.3),
+  maxTokens: z.number().int().min(256).max(32_768).optional().default(16384),
+});
 
-  if (!provider || !model || !messages?.length) {
-    return Response.json(
-      { error: "Missing required fields: provider, model, messages", code: "INVALID_REQUEST" },
-      { status: 400 },
-    );
+export async function action({ request }: { request: Request }) {
+  const rawBody = await request.json().catch(() => null);
+  if (!rawBody) {
+    return Response.json({ error: "Invalid JSON body", code: "INVALID_REQUEST" }, { status: 400 });
   }
+
+  const parsed = ChatRequestSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    const detail = parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");
+    return Response.json({ error: detail, code: "INVALID_REQUEST" }, { status: 400 });
+  }
+
+  const { messages, provider, model, projectType, temperature, maxTokens } = parsed.data;
 
   try {
     const result = await streamText({
-      messages: messages.map((m) => ({
-        id: m.id,
-        role: m.role as "user" | "assistant" | "system",
-        content: m.content,
-      })),
+      messages,
       provider,
       model,
       projectType,
