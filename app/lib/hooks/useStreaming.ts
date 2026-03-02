@@ -6,17 +6,40 @@ type StreamOptions = {
   model: string;
   projectType?: string;
   temperature?: number;
+  maxTokens?: number;
 };
 
 type SSEPayload = { text?: string; error?: string };
 
+// Max assistant messages kept in history. Each assistant message can be very large
+// (full generated code). Keeping too many fills the model's context window → "terminated".
+const MAX_ASSISTANT_TURNS = 2;
+
 function buildMessageHistory() {
   const all = useChatStore.getState().messages;
+
+  // Drop trailing empty assistant placeholder (added before stream starts)
   const last = all[all.length - 1];
-  const filtered = last && last.role === "assistant" && !last.content
+  const messages = last && last.role === "assistant" && !last.content
     ? all.slice(0, -1)
     : all;
-  return filtered.map((m) => ({ id: m.id, role: m.role, content: m.content }));
+
+  // Sliding window: keep all user messages but truncate large assistant messages.
+  // Strategy: walk from the end, keep the last MAX_ASSISTANT_TURNS assistant turns in full,
+  // replace older assistant messages with a short summary to save tokens.
+  let assistantCount = 0;
+  const windowed = [...messages].reverse().map((m) => {
+    if (m.role !== "assistant") return { id: m.id, role: m.role, content: m.content };
+    assistantCount++;
+    if (assistantCount <= MAX_ASSISTANT_TURNS) {
+      return { id: m.id, role: m.role, content: m.content };
+    }
+    // Older assistant messages: keep only the first 200 chars as context hint
+    const preview = m.content.slice(0, 200).trimEnd();
+    return { id: m.id, role: m.role, content: preview ? `${preview}…[truncated]` : "" };
+  }).reverse();
+
+  return windowed;
 }
 
 function processSSEBuffer(
@@ -111,7 +134,7 @@ export function useStreaming() {
             model: options.model,
             projectType: options.projectType ?? "react",
             temperature: options.temperature ?? 0.3,
-            maxTokens: 16384,
+            maxTokens: options.maxTokens ?? 8192,
           }),
           signal: controller.signal,
         });

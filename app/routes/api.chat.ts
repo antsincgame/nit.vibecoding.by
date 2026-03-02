@@ -16,7 +16,7 @@ const ChatRequestSchema = z.object({
     .max(200),
   projectType: z.enum(["react", "html", "vue"]).optional().default("react"),
   temperature: z.number().min(0).max(2).optional().default(0.3),
-  maxTokens: z.number().int().min(256).max(32_768).optional().default(16384),
+  maxTokens: z.number().int().min(256).max(32_768).optional().default(8192),
 });
 
 export async function action({ request }: { request: Request }) {
