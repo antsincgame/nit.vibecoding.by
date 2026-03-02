@@ -44,7 +44,7 @@ export function Workbench() {
   }, [fileList.length]);
 
   useEffect(() => {
-    if (wasStreamingRef.current && !streaming.isStreaming && !streaming.error) {
+    if (wasStreamingRef.current && !streaming.isStreaming) {
       const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
       if (lastAssistant?.content) {
         const parsed = parseGeneratedCode(lastAssistant.content);

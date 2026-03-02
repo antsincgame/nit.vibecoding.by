@@ -34,7 +34,7 @@ export function ChatPanel() {
   const hasAgent = agents.some((a) => a.id === selection.agentId && a.status === "online");
 
   useEffect(() => {
-    if (wasStreamingRef.current && !streaming.isStreaming && !streaming.error) {
+    if (wasStreamingRef.current && !streaming.isStreaming) {
       const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
       if (!lastAssistant?.content) return;
 

@@ -145,6 +145,12 @@ export function useStreaming() {
           if (result.done) break;
         }
 
+        // Strip trailing "terminated" that some models (qwen3 variants) append as last token
+        const cleaned = accumulated.replace(/\n*\bterminated\b\s*$/i, "").trimEnd();
+        if (cleaned !== accumulated) {
+          updateLastAssistantMessage(cleaned);
+        }
+
         setStreaming({ isStreaming: false });
       } catch (err) {
         if ((err as Error).name === "AbortError") {
@@ -154,12 +160,6 @@ export function useStreaming() {
 
         const errorMessage = err instanceof Error ? err.message : "Generation failed";
         setStreaming({ isStreaming: false, error: errorMessage });
-
-        // Keep whatever the model managed to generate — don't overwrite with error text.
-        // Only replace if model sent nothing at all.
-        if (!accumulated) {
-          updateLastAssistantMessage("");
-        }
       } finally {
         abortRef.current = null;
       }
