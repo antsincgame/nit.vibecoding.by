@@ -5,6 +5,7 @@ export type AIModel = {
   id: string;
   name: string;
   parameterSize?: string;
+  contextLength?: number;
 };
 
 export type AIAgent = {

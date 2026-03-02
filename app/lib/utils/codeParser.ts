@@ -154,30 +154,83 @@ function stripPreamble(text: string): string {
   return text;
 }
 
-const NIT_ACTION_RE = /<nitAction\s+type="file"\s+filePath="([^"]+)"\s*>([\s\S]*?)<\/nitAction>/gi;
-const BOLT_ACTION_RE = /<boltAction\s+type="file"\s+filePath="([^"]+)"\s*>([\s\S]*?)<\/boltAction>/gi;
+const ARTIFACT_OPEN_RE = /^<(nit|bolt)Artifact\b[^>]*>/i;
+const ARTIFACT_CLOSE_RE = /<\/(nit|bolt)Artifact\s*>/gi;
+
+function stripArtifactWrapper(text: string): string {
+  let cleaned = text.replace(ARTIFACT_OPEN_RE, "");
+  cleaned = cleaned.replace(ARTIFACT_CLOSE_RE, "");
+  return cleaned.trim();
+}
+
+const NIT_ACTION_RE_FLEX = /<(?:nit|bolt)Action\s+(?=(?:[^>]*?\btype\s*=\s*"file"))(?=[^>]*?\bfilePath\s*=\s*"([^"]+)")[^>]*>([\s\S]*?)<\/(?:nit|bolt)Action\s*>/gi;
 
 function parseArtifactProtocol(text: string): Record<string, string> {
   const files: Record<string, string> = {};
 
-  for (const re of [NIT_ACTION_RE, BOLT_ACTION_RE]) {
-    re.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(text)) !== null) {
-      const filePath = match[1]?.trim();
-      const content = match[2]?.trim();
-      if (filePath && content) {
-        files[filePath] = content;
-      }
+  NIT_ACTION_RE_FLEX.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = NIT_ACTION_RE_FLEX.exec(text)) !== null) {
+    const filePath = match[1]?.trim();
+    const content = match[2]?.trim();
+    if (filePath && content) {
+      files[filePath] = content;
     }
-    if (Object.keys(files).length > 0) return files;
   }
 
   return files;
 }
 
-const UNCLOSED_ARTIFACT_RE = /^<(nit|bolt)Artifact\b/i;
 const ERROR_MESSAGE_RE = /^(Error:|TypeError:|ReferenceError:|SyntaxError:|terminated$)/i;
+
+const CODE_INDICATORS = [
+  /\bimport\s+/,
+  /\bexport\s+(default\s+)?(function|const|class|interface|type)\b/,
+  /\bfunction\s+\w+\s*\(/,
+  /\bconst\s+\w+\s*=/,
+  /\blet\s+\w+\s*=/,
+  /\breturn\s*\(/,
+  /\buseState\b/,
+  /\buseEffect\b/,
+  /<\w+[\s/>]/,
+  /\bclassName=/,
+  /\bclass\s+\w+/,
+  /\binterface\s+\w+/,
+  /\{\s*\n/,
+  /=>\s*[{(]/,
+  /document\.\w+/,
+  /@tailwind\b/,
+  /\bbackground(-color)?:/,
+  /\bdisplay\s*:/,
+  /\bmargin\s*:|padding\s*:/,
+  /<!DOCTYPE/i,
+  /<html/i,
+  /<template/,
+  /<script/,
+];
+
+export function looksLikeCode(text: string): boolean {
+  let hits = 0;
+  for (const re of CODE_INDICATORS) {
+    if (re.test(text)) hits++;
+    if (hits >= 2) return true;
+  }
+  return false;
+}
+
+export function sanitizeVersionCode(code: Record<string, string>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [path, content] of Object.entries(code)) {
+    if (/\.(css|scss|html|json|svg|md)$/.test(path)) {
+      result[path] = content;
+      continue;
+    }
+    if (looksLikeCode(content)) {
+      result[path] = content;
+    }
+  }
+  return result;
+}
 
 export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   if (!rawOutput.trim()) return {};
@@ -185,16 +238,17 @@ export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   const cleaned = stripPreamble(stripThinkBlocks(rawOutput)).trim();
   if (!cleaned) return {};
 
-  // Short error/status strings must never be treated as code files
   if (cleaned.length < 30 && ERROR_MESSAGE_RE.test(cleaned)) return {};
 
   const artifactFiles = parseArtifactProtocol(cleaned);
   if (Object.keys(artifactFiles).length > 0) return artifactFiles;
 
-  // Artifact block opened but no nitAction has closed yet — still streaming, don't fallback
-  if (UNCLOSED_ARTIFACT_RE.test(cleaned)) return {};
+  const hasArtifactWrapper = ARTIFACT_OPEN_RE.test(cleaned);
+  const inner = hasArtifactWrapper ? stripArtifactWrapper(cleaned) : cleaned;
 
-  const unwrapped = unwrapSingleMarkdownBlock(cleaned);
+  if (!inner) return {};
+
+  const unwrapped = unwrapSingleMarkdownBlock(inner);
   const lines = unwrapped.split("\n");
 
   const markerFiles = parseWithMarkers(lines);
@@ -203,8 +257,12 @@ export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   const markdownFiles = parseMarkdownBlocks(lines);
   if (Object.keys(markdownFiles).length > 0) return markdownFiles;
 
-  const filename = detectFilenameFromContent(cleaned);
-  return { [filename]: cleaned };
+  if (hasArtifactWrapper && inner.length < 50) return {};
+
+  if (!looksLikeCode(inner)) return {};
+
+  const filename = detectFilenameFromContent(inner);
+  return { [filename]: inner };
 }
 
 export function extractChatText(rawContent: string): string {
@@ -277,4 +335,164 @@ export function detectLanguage(filePath: string): string {
     svg: "xml",
   };
   return langMap[ext] ?? "plaintext";
+}
+
+export type IncrementalFileCallback = (filePath: string, content: string) => void;
+
+const ACTION_OPEN_RE = /<(?:nit|bolt)Action\s+(?=(?:[^>]*?\btype\s*=\s*"file"))(?=[^>]*?\bfilePath\s*=\s*"([^"]+)")[^>]*>/gi;
+const ACTION_CLOSE_RE = /<\/(?:nit|bolt)Action\s*>/i;
+
+export class IncrementalArtifactParser {
+  private buffer = "";
+  private currentFilePath: string | null = null;
+  private currentContent = "";
+  private files: Record<string, string> = {};
+  private onFile: IncrementalFileCallback;
+  private mode: "xml" | "marker" | "detect" = "detect";
+
+  constructor(onFile: IncrementalFileCallback) {
+    this.onFile = onFile;
+  }
+
+  push(chunk: string): void {
+    this.buffer += chunk;
+    this.drain();
+  }
+
+  getFiles(): Record<string, string> {
+    return { ...this.files };
+  }
+
+  reset(): void {
+    this.buffer = "";
+    this.currentFilePath = null;
+    this.currentContent = "";
+    this.files = {};
+    this.mode = "detect";
+  }
+
+  private drain(): void {
+    if (this.mode === "detect") {
+      this.detectMode();
+    }
+
+    if (this.mode === "xml") {
+      this.drainXml();
+    } else if (this.mode === "marker") {
+      this.drainMarkers();
+    }
+  }
+
+  private detectMode(): void {
+    const hasXmlAction = ACTION_OPEN_RE.test(this.buffer);
+    ACTION_OPEN_RE.lastIndex = 0;
+
+    if (hasXmlAction) {
+      this.mode = "xml";
+      return;
+    }
+
+    if (FILE_MARKER.test(this.buffer.split("\n").find((l) => FILE_MARKER.test(l.trim())) ?? "")) {
+      this.mode = "marker";
+      return;
+    }
+
+    if (this.buffer.length > 500) {
+      const lines = this.buffer.split("\n");
+      for (const line of lines) {
+        if (tryFileMarker(line)) {
+          this.mode = "marker";
+          return;
+        }
+      }
+    }
+  }
+
+  private drainXml(): void {
+    while (this.buffer.length > 0) {
+      if (this.currentFilePath === null) {
+        ACTION_OPEN_RE.lastIndex = 0;
+        const openMatch = ACTION_OPEN_RE.exec(this.buffer);
+        if (!openMatch) return;
+
+        const filePath = openMatch[1]?.trim();
+        if (!filePath) return;
+
+        this.currentFilePath = filePath;
+        this.currentContent = "";
+        this.buffer = this.buffer.slice(openMatch.index + openMatch[0].length);
+      } else {
+        const closeMatch = ACTION_CLOSE_RE.exec(this.buffer);
+        if (!closeMatch) {
+          this.currentContent += this.buffer;
+          this.buffer = "";
+          return;
+        }
+
+        this.currentContent += this.buffer.slice(0, closeMatch.index);
+        this.buffer = this.buffer.slice(closeMatch.index + closeMatch[0].length);
+
+        const trimmed = this.currentContent.trim();
+        if (trimmed) {
+          this.files[this.currentFilePath] = trimmed;
+          this.onFile(this.currentFilePath, trimmed);
+        }
+
+        this.currentFilePath = null;
+        this.currentContent = "";
+      }
+    }
+  }
+
+  private drainMarkers(): void {
+    const lines = this.buffer.split("\n");
+
+    let lastCompleteLineIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i] !== undefined && i < lines.length - 1) {
+        lastCompleteLineIdx = i;
+        break;
+      }
+    }
+
+    if (lastCompleteLineIdx < 0 && lines.length > 1) {
+      lastCompleteLineIdx = lines.length - 2;
+    }
+
+    if (lastCompleteLineIdx < 0) return;
+
+    const completeLines = lines.slice(0, lastCompleteLineIdx + 1);
+    this.buffer = lines.slice(lastCompleteLineIdx + 1).join("\n");
+
+    for (const line of completeLines) {
+      const filePath = tryFileMarker(line);
+
+      if (filePath) {
+        if (this.currentFilePath) {
+          const content = this.currentContent.trim();
+          if (content) {
+            this.files[this.currentFilePath] = content;
+            this.onFile(this.currentFilePath, content);
+          }
+        }
+        this.currentFilePath = filePath;
+        this.currentContent = "";
+      } else if (this.currentFilePath) {
+        this.currentContent += line + "\n";
+      }
+    }
+  }
+
+  flush(): void {
+    if (this.currentFilePath && this.mode === "marker") {
+      const content = (this.currentContent + this.buffer).trim();
+      if (content) {
+        this.files[this.currentFilePath] = content;
+        this.onFile(this.currentFilePath, content);
+      }
+      this.currentFilePath = null;
+      this.currentContent = "";
+      this.buffer = "";
+    }
+  }
 }

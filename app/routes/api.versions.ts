@@ -20,7 +20,21 @@ export async function action({ request }: { request: Request }) {
 
   if (method === "POST") {
     const body = await request.json();
-    const version = await versionService.createVersion(body);
+    const versionInput = {
+      projectId: body.projectId,
+      code: body.code ?? body.files ?? {},
+      prompt: body.prompt ?? "",
+      model: body.model ?? "",
+      agentId: body.agentId ?? "",
+      temperature: body.temperature ?? 0.3,
+    };
+    if (!versionInput.projectId) {
+      return Response.json(
+        { error: "Missing projectId", code: "MISSING_PROJECT_ID" },
+        { status: 400 },
+      );
+    }
+    const version = await versionService.createVersion(versionInput);
     return Response.json({ data: version }, { status: 201 });
   }
 

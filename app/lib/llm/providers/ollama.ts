@@ -4,7 +4,7 @@ import type { ModelInfo, GetModelOptions, IProviderSetting } from "../types";
 import { logger } from "~/lib/utils/logger";
 
 export class OllamaProvider extends BaseProvider {
-  name = "Ollama";
+  name = "ollama";
   staticModels: ModelInfo[] = [];
   config = { baseUrlKey: "OLLAMA_BASE_URL" };
 

@@ -17,6 +17,7 @@ import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { useUIStore } from "~/lib/stores/uiStore";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { cn } from "~/lib/utils/cn";
+import { sanitizeVersionCode } from "~/lib/utils/codeParser";
 
 
 function AgentStatusBar() {
@@ -72,19 +73,37 @@ function Sidebar() {
       useChatStore.getState().saveProjectChat(prevId);
     }
 
-    useChatStore.getState().loadProjectChat(currentProject.id);
+    const loadChat = async () => {
+      await useChatStore.getState().loadProjectChat(currentProject.id);
 
-    loadVersions().then((loaded) => {
+      const loaded = await loadVersions();
       const latest = loaded[0];
       if (!latest) return;
 
       const { generatedCode } = useChatStore.getState();
       if (Object.keys(generatedCode).length === 0) {
-        useChatStore.getState().setGeneratedCode(latest.code);
+        const clean = sanitizeVersionCode(latest.code);
+        if (Object.keys(clean).length > 0) {
+          useChatStore.getState().setGeneratedCode(clean);
+        }
       }
       useProjectStore.getState().setCurrentVersion(latest);
-    });
+    };
+
+    loadChat();
   }, [currentProject?.id]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const projectId = prevProjectIdRef.current;
+      if (projectId) {
+        useChatStore.getState().saveProjectChat(projectId);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

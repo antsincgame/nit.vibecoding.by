@@ -52,17 +52,18 @@ export async function createProject(
   const db = getDb();
   const id = generateId();
   const now = new Date().toISOString();
+  const projectType = input.type ?? "react";
 
   db.prepare(
     `INSERT INTO projects (id, name, description, type, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(id, input.name, input.description, input.type, now, now);
+  ).run(id, input.name, input.description, projectType, now, now);
 
   return {
     id,
     name: input.name,
     description: input.description,
-    type: input.type,
+    type: projectType,
     agentId: "",
     modelUsed: "",
     createdAt: now,

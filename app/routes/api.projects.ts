@@ -18,7 +18,12 @@ export async function action({ request }: { request: Request }) {
 
   if (method === "POST") {
     const body = await request.json();
-    const project = await projectService.createProject(body);
+    const input = {
+      name: body.name ?? "Untitled",
+      description: body.description ?? "",
+      type: body.type ?? "react",
+    };
+    const project = await projectService.createProject(input);
     return Response.json({ data: project }, { status: 201 });
   }
 

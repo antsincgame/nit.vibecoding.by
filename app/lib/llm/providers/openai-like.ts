@@ -4,7 +4,7 @@ import type { ModelInfo, GetModelOptions, IProviderSetting } from "../types";
 import { logger } from "~/lib/utils/logger";
 
 export class OpenAILikeProvider extends BaseProvider {
-  name = "OpenAILike";
+  name = "custom";
   staticModels: ModelInfo[] = [];
   config = {
     baseUrlKey: "CUSTOM_LLM_URL",

@@ -6,6 +6,11 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Respons
   return fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
 }
 
+// Ollama sets num_ctx to 2048 by default; our provider overrides to 32768.
+const OLLAMA_DEFAULT_CTX = 32768;
+// LM Studio doesn't report context_length; modern models support 32K+ minimum.
+const LMSTUDIO_DEFAULT_CTX = 32768;
+
 async function discoverOllama(baseUrl: string): Promise<AIAgent | null> {
   try {
     const response = await fetchWithTimeout(`${baseUrl}/api/tags`, DISCOVERY_TIMEOUT);
@@ -19,6 +24,7 @@ async function discoverOllama(baseUrl: string): Promise<AIAgent | null> {
       id: m.name,
       name: m.name,
       parameterSize: m.details?.parameter_size,
+      contextLength: OLLAMA_DEFAULT_CTX,
     }));
 
     return {
@@ -49,12 +55,17 @@ async function discoverLMStudio(baseUrl: string): Promise<AIAgent | null> {
     if (!response.ok) return null;
 
     const data = (await response.json()) as {
-      data: Array<{ id: string }>;
+      data: Array<{
+        id: string;
+        context_length?: number;
+        max_context_length?: number;
+      }>;
     };
 
     const models: AIModel[] = data.data.map((m) => ({
       id: m.id,
       name: m.id,
+      contextLength: m.context_length ?? m.max_context_length ?? LMSTUDIO_DEFAULT_CTX,
     }));
 
     return {

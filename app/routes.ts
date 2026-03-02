@@ -6,4 +6,5 @@ export default [
   route("api/agents", "routes/api.agents.ts"),
   route("api/projects", "routes/api.projects.ts"),
   route("api/versions", "routes/api.versions.ts"),
+  route("api/messages", "routes/api.messages.ts"),
 ] satisfies RouteConfig;

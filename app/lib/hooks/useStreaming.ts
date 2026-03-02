@@ -1,5 +1,9 @@
 import { useCallback, useRef } from "react";
 import { useChatStore } from "~/lib/stores/chatStore";
+import { useAgentStore } from "~/lib/stores/agentStore";
+import { useProjectStore } from "~/lib/stores/projectStore";
+import { estimateTokens } from "~/lib/utils/tokenEstimator";
+import { IncrementalArtifactParser } from "~/lib/utils/codeParser";
 
 type StreamOptions = {
   provider: string;
@@ -7,39 +11,58 @@ type StreamOptions = {
   projectType?: string;
   temperature?: number;
   maxTokens?: number;
+  contextWindow?: number;
 };
 
-type SSEPayload = { text?: string; error?: string };
+type SSEPayload = { text?: string; error?: string; warning?: string };
 
-// Max assistant messages kept in history. Each assistant message can be very large
-// (full generated code). Keeping too many fills the model's context window → "terminated".
-const MAX_ASSISTANT_TURNS = 2;
+const DEFAULT_CONTEXT_WINDOW = 8192;
+const HISTORY_BUDGET_RATIO = 0.4;
+const MIN_ASSISTANT_PREVIEW = 200;
 
-function buildMessageHistory() {
+function getSelectedContextWindow(): number {
+  const { agents, selection } = useAgentStore.getState();
+  const agent = agents.find((a) => a.id === selection.agentId);
+  if (!agent) return DEFAULT_CONTEXT_WINDOW;
+  const model = agent.models.find((m) => m.id === selection.modelId);
+  return model?.contextLength ?? DEFAULT_CONTEXT_WINDOW;
+}
+
+function buildMessageHistory(contextWindow: number): Array<{ id: string; role: string; content: string }> {
   const all = useChatStore.getState().messages;
 
-  // Drop trailing empty assistant placeholder (added before stream starts)
   const last = all[all.length - 1];
   const messages = last && last.role === "assistant" && !last.content
     ? all.slice(0, -1)
     : all;
 
-  // Sliding window: keep all user messages but truncate large assistant messages.
-  // Strategy: walk from the end, keep the last MAX_ASSISTANT_TURNS assistant turns in full,
-  // replace older assistant messages with a short summary to save tokens.
-  let assistantCount = 0;
-  const windowed = [...messages].reverse().map((m) => {
-    if (m.role !== "assistant") return { id: m.id, role: m.role, content: m.content };
-    assistantCount++;
-    if (assistantCount <= MAX_ASSISTANT_TURNS) {
-      return { id: m.id, role: m.role, content: m.content };
-    }
-    // Older assistant messages: keep only the first 200 chars as context hint
-    const preview = m.content.slice(0, 200).trimEnd();
-    return { id: m.id, role: m.role, content: preview ? `${preview}…[truncated]` : "" };
-  }).reverse();
+  const historyBudget = Math.floor(contextWindow * HISTORY_BUDGET_RATIO);
+  let usedTokens = 0;
+  const result: Array<{ id: string; role: string; content: string }> = [];
 
-  return windowed;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]!;
+    const contentTokens = estimateTokens(m.content);
+
+    if (usedTokens + contentTokens <= historyBudget) {
+      result.unshift({ id: m.id, role: m.role, content: m.content });
+      usedTokens += contentTokens;
+    } else if (m.role === "user") {
+      const remaining = historyBudget - usedTokens;
+      if (remaining > 50) {
+        const charLimit = Math.floor(remaining * 3.5);
+        result.unshift({ id: m.id, role: m.role, content: m.content.slice(0, charLimit) });
+      }
+      break;
+    } else {
+      const preview = m.content.slice(0, MIN_ASSISTANT_PREVIEW).trimEnd();
+      result.unshift({ id: m.id, role: m.role, content: preview ? `${preview}…[truncated]` : "" });
+      usedTokens += estimateTokens(preview) + 5;
+      if (usedTokens >= historyBudget) break;
+    }
+  }
+
+  return result;
 }
 
 function processSSEBuffer(
@@ -73,6 +96,9 @@ function processSSEBuffer(
         error = parsed.error;
         break;
       }
+      if (parsed.warning) {
+        console.warn("[NIT.BY]", parsed.warning);
+      }
       if (parsed.text) {
         onText(parsed.text);
       }
@@ -89,7 +115,7 @@ function processSSEBuffer(
 
 export function useStreaming() {
   const abortRef = useRef<AbortController | null>(null);
-  const { addMessage, updateLastAssistantMessage, setStreaming } = useChatStore();
+  const { addMessage, updateLastAssistantMessage, setStreaming, updateGeneratedFile, persistToDb } = useChatStore();
 
   const generate = useCallback(
     async (prompt: string, options: StreamOptions) => {
@@ -122,8 +148,13 @@ export function useStreaming() {
 
       let accumulated = "";
 
+      const parser = new IncrementalArtifactParser((filePath, content) => {
+        updateGeneratedFile(filePath, content);
+      });
+
       try {
-        const allMessages = buildMessageHistory();
+        const ctxWindow = options.contextWindow ?? getSelectedContextWindow();
+        const allMessages = buildMessageHistory(ctxWindow);
 
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -135,6 +166,7 @@ export function useStreaming() {
             projectType: options.projectType ?? "react",
             temperature: options.temperature ?? 0.3,
             maxTokens: options.maxTokens ?? 8192,
+            contextWindow: ctxWindow,
           }),
           signal: controller.signal,
         });
@@ -158,6 +190,7 @@ export function useStreaming() {
 
           const result = processSSEBuffer(sseBuffer, (text) => {
             accumulated += text;
+            parser.push(text);
             updateLastAssistantMessage(accumulated);
             setStreaming({ currentContent: accumulated });
           });
@@ -168,26 +201,40 @@ export function useStreaming() {
           if (result.done) break;
         }
 
-        // Strip trailing "terminated" that some models (qwen3 variants) append as last token
+        parser.flush();
+
         const cleaned = accumulated.replace(/\n*\bterminated\b\s*$/i, "").trimEnd();
         if (cleaned !== accumulated) {
           updateLastAssistantMessage(cleaned);
         }
 
-        setStreaming({ isStreaming: false });
+        if (!cleaned) {
+          setStreaming({
+            isStreaming: false,
+            error: "Модель не сгенерировала ответ. Возможно, контекстное окно слишком мало для данной модели. Попробуйте модель с большим контекстом.",
+          });
+        } else {
+          setStreaming({ isStreaming: false });
+        }
+        const pid = useProjectStore.getState().currentProject?.id;
+        if (pid) persistToDb(pid);
       } catch (err) {
         if ((err as Error).name === "AbortError") {
           setStreaming({ isStreaming: false });
+          const pid = useProjectStore.getState().currentProject?.id;
+          if (pid) persistToDb(pid);
           return;
         }
 
         const errorMessage = err instanceof Error ? err.message : "Generation failed";
         setStreaming({ isStreaming: false, error: errorMessage });
+        const pid = useProjectStore.getState().currentProject?.id;
+        if (pid) persistToDb(pid);
       } finally {
         abortRef.current = null;
       }
     },
-    [addMessage, updateLastAssistantMessage, setStreaming],
+    [addMessage, updateLastAssistantMessage, setStreaming, updateGeneratedFile, persistToDb],
   );
 
   const stop = useCallback(() => {

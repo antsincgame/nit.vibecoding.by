@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
 import { useSettingsStore } from "~/lib/stores/settingsStore";
-import { parseGeneratedCode, detectLanguage } from "~/lib/utils/codeParser";
+import { parseGeneratedCode, detectLanguage, sanitizeVersionCode } from "~/lib/utils/codeParser";
 import { formatAllFiles } from "~/lib/utils/formatCode";
 import { exportProjectAsZip, downloadBlob } from "~/features/projects/service/exportService";
 import { CodeEditor } from "./CodeEditor";
@@ -26,9 +26,11 @@ export function Workbench() {
   const wasStreamingRef = useRef(false);
 
   const files = useMemo(() => {
-    if (!streaming.isStreaming && Object.keys(generatedCode).length > 0) {
+    if (Object.keys(generatedCode).length > 0) {
       return generatedCode;
     }
+    if (streaming.isStreaming) return generatedCode;
+
     const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
     if (!lastAssistant) return generatedCode;
     const parsed = parseGeneratedCode(lastAssistant.content);
@@ -48,8 +50,9 @@ export function Workbench() {
       const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
       if (lastAssistant?.content) {
         const parsed = parseGeneratedCode(lastAssistant.content);
-        if (Object.keys(parsed).length > 0) {
-          setGeneratedCode(parsed);
+        const clean = sanitizeVersionCode(parsed);
+        if (Object.keys(clean).length > 0) {
+          setGeneratedCode(clean);
         }
       }
     }

@@ -6,20 +6,14 @@ import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { useStreaming } from "~/lib/hooks/useStreaming";
 import { useProjects } from "~/features/projects/hooks/useProjects";
 import { useVersionHistory } from "~/features/projects/hooks/useVersionHistory";
-import { parseGeneratedCode } from "~/lib/utils/codeParser";
+import { parseGeneratedCode, sanitizeVersionCode } from "~/lib/utils/codeParser";
 import { MessageList } from "./MessageList";
 import { PromptInput } from "./PromptInput";
 import { GlowText } from "~/components/ui/GlowText";
 import { useT } from "~/lib/utils/i18n";
 
-const PROVIDER_MAP: Record<string, string> = {
-  ollama: "Ollama",
-  "lm-studio": "LMStudio",
-  custom: "OpenAILike",
-};
-
 export function ChatPanel() {
-  const { messages, streaming } = useChatStore();
+  const { messages, streaming, isChatLoading } = useChatStore();
   const { selection, agents } = useAgentStore();
   const { currentProject } = useProjectStore();
   const { generate, stop } = useStreaming();
@@ -39,13 +33,14 @@ export function ChatPanel() {
       if (!lastAssistant?.content) return;
 
       const code = parseGeneratedCode(lastAssistant.content);
-      if (Object.keys(code).length === 0) return;
+      const sanitized = sanitizeVersionCode(code);
+      if (Object.keys(sanitized).length === 0) return;
 
       const project = useProjectStore.getState().currentProject;
       if (project) {
         if (useSettingsStore.getState().autoSave) {
           saveVersion({
-            code,
+            code: sanitized,
             prompt: lastPromptRef.current,
             model: lastOptionsRef.current.model,
             agentId: lastOptionsRef.current.agentId,
@@ -64,7 +59,7 @@ export function ChatPanel() {
     const agent = agents.find((a) => a.id === selection.agentId);
     if (!agent) return;
 
-    const provider = PROVIDER_MAP[agent.id] ?? "Ollama";
+    const provider = agent.id;
 
     lastPromptRef.current = prompt;
     lastOptionsRef.current = {
@@ -75,22 +70,35 @@ export function ChatPanel() {
 
     const { defaultProjectType } = useSettingsStore.getState();
 
-    if (!currentProject) {
-      const projectName = prompt.length > 50 ? prompt.slice(0, 50) + "..." : prompt;
-      await createProject({ name: projectName, description: "", type: defaultProjectType });
-    }
+    try {
+      if (!currentProject) {
+        const projectName = prompt.length > 50 ? prompt.slice(0, 50) + "..." : prompt;
+        const created = await createProject({ name: projectName, description: "", type: defaultProjectType });
+        if (!created) {
+          useChatStore.getState().setStreaming({ error: "Не удалось создать проект" });
+          return;
+        }
+      }
 
-    generate(prompt, {
-      provider,
-      model: selection.modelId,
-      temperature: selection.temperature,
-      projectType: currentProject?.type ?? defaultProjectType,
-    });
+      generate(prompt, {
+        provider,
+        model: selection.modelId,
+        temperature: selection.temperature,
+        projectType: currentProject?.type ?? defaultProjectType,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
+      useChatStore.getState().setStreaming({ error: msg });
+    }
   };
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      {messages.length === 0 ? (
+      {isChatLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-text-muted text-sm animate-pulse">{t("chat.loading") ?? "Loading chat…"}</p>
+        </div>
+      ) : messages.length === 0 ? (
         <div className="flex-1 flex items-center justify-center px-6 overflow-hidden">
           <div className="text-center max-w-md">
             <GlowText as="h2" variant="gold" className="text-2xl mb-3">

@@ -4,7 +4,7 @@ import type { ModelInfo, GetModelOptions, IProviderSetting } from "../types";
 import { logger } from "~/lib/utils/logger";
 
 export class LMStudioProvider extends BaseProvider {
-  name = "LMStudio";
+  name = "lm-studio";
   staticModels: ModelInfo[] = [];
   config = {
     baseUrlKey: "LMSTUDIO_BASE_URL",

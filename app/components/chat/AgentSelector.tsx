@@ -41,11 +41,16 @@ export function AgentSelector() {
           className="bg-deep-space border border-border-subtle rounded px-2 py-0.5 text-[11px] text-text-primary outline-none focus:border-gold-pure/40 cursor-pointer w-full min-w-0"
         >
           {!selectedAgent?.models.length && <option value="">—</option>}
-          {selectedAgent?.models.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.name}
-            </option>
-          ))}
+          {selectedAgent?.models.map((model) => {
+            const ctxLabel = model.contextLength
+              ? ` [${model.contextLength >= 1024 ? `${Math.round(model.contextLength / 1024)}K` : model.contextLength}]`
+              : "";
+            return (
+              <option key={model.id} value={model.id}>
+                {model.name}{ctxLabel}
+              </option>
+            );
+          })}
         </select>
       </div>
 

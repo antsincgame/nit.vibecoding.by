@@ -1,12 +1,14 @@
 const LOCAL_MODEL_RULES = `
 <critical_rules>
 CRITICAL — LOCAL MODEL RULES (follow strictly):
-- Do NOT use <think>, <thinking>, or any reasoning/scratchpad blocks. Start output IMMEDIATELY.
+- You MAY use <think>...</think> blocks for reasoning before generating code. This is encouraged for complex tasks.
+- After thinking, output ONLY the nitArtifact block (or clarifying questions). No other prose.
 - Do NOT stop generating until ALL required files are written completely.
 - Do NOT add "..." or truncate any file — every file must be 100% complete.
 - Do NOT output partial files. If a file is started, it MUST be finished.
 - If output is long, keep going. Never summarize or abbreviate code.
-- Do NOT add explanations, comments about what you did, or any prose OUTSIDE the artifact tags.
+- Do NOT add explanations or prose INSIDE the nitArtifact block, except nitAction elements.
+- Each file MUST use <nitAction type="file" filePath="...">content</nitAction> tags. Do NOT use // === FILE: markers inside <nitArtifact>.
 </critical_rules>`;
 
 const PLANNING_RULES = `
@@ -106,35 +108,37 @@ const REACT_RULES = `
 <project_type>
 You are generating a React + TypeScript project for browser preview.
 
-REQUIRED files (always include ALL of them):
-1. App.tsx — THE ONLY component file. Contains ALL components and logic. Default export required.
+REQUIRED files:
+1. App.tsx — main entry component. Default export required.
 2. index.css — base styles (ROOT level, NOT in src/)
 
-CRITICAL SINGLE-FILE RULE:
-- Put ALL components, types, and helpers inside App.tsx.
-- Do NOT create separate component files (no components/Header.tsx, no components/Card.tsx, etc.).
-- If you need sub-components (Header, Footer, Card, etc.), define them as functions INSIDE App.tsx ABOVE the default export.
-- This prevents import resolution errors in the preview environment.
+AVAILABLE LIBRARIES (ONLY these are available in the preview sandbox):
+- React 19 (all hooks, memo, forwardRef, Suspense, Fragment, etc.)
+- ReactDOM (createRoot, createPortal)
+- TailwindCSS (via CDN, all utility classes)
 
-REQUIRED STRUCTURE of App.tsx:
-  import { useState } from "react";
+FORBIDDEN IMPORTS (these will CRASH the preview):
+- react-router-dom — use useState for page navigation instead
+- framer-motion — use CSS animations/transitions instead
+- axios — use native fetch instead
+- any npm package not listed above
 
-  function Header() { ... }
-  function Card({ title }: { title: string }) { ... }
+FOR MULTI-PAGE SITES: Use a state variable to track the current page:
+  const [page, setPage] = useState("home");
+  return page === "home" ? <Home /> : page === "about" ? <About /> : <Contact />;
+  Navigation: <button onClick={() => setPage("about")}>About</button>
 
-  export default function App() {
-    return (
-      <div>
-        <Header />
-        <Card title="Example" />
-      </div>
-    );
-  }
+MULTI-FILE SUPPORT:
+- You CAN split components into separate files in a components/ folder.
+- Example: components/Header.tsx, components/Card.tsx
+- Use relative imports: import { Header } from "./components/Header"
+- Each component file must have a named or default export.
+- For SMALL projects (< 5 components), putting everything in App.tsx is fine.
+- For LARGE projects, split into logical component files.
 
 IMPORTANT PATH RULES:
-- All files go in ROOT directory: App.tsx, index.css
+- All files go in ROOT directory: App.tsx, index.css, components/Header.tsx
 - NEVER use src/ prefix. The preview environment runs files from root.
-- NEVER create a components/ folder.
 
 Use TypeScript (.tsx/.ts) for all source files.
 Use TailwindCSS classes for styling.
@@ -204,7 +208,9 @@ If you cannot produce XML tags, fall back to:
 // === FILE: path/to/file.ext ===
 (file content here)
 
-NO markdown fences. NO think blocks. Write EVERY file completely. Do NOT stop early.
+NO markdown fences inside artifacts. Write EVERY file completely. Do NOT stop early.
+DO NOT import react-router-dom, framer-motion, axios or any npm package. ONLY React + TailwindCSS are available.
+For multi-page UIs use useState to switch views — NOT routing.
 </reminder>`;
 
 export function buildSystemPrompt(projectType: string): string {
@@ -220,4 +226,50 @@ export function buildSystemPrompt(projectType: string): string {
     QUALITY_RULES,
     REMINDER,
   ].join("\n");
+}
+
+const COMPACT_REACT = `<project_type>
+React+TS project. Put ALL components in one App.tsx (default export required) + index.css at root.
+No src/ prefix. No separate component files. Use TailwindCSS. Functional components with typed props.
+</project_type>`;
+
+const COMPACT_HTML = `<project_type>
+HTML/CSS/JS project. Files: index.html (with tailwind CDN), style.css, script.js. Modern ES2022+.
+</project_type>`;
+
+const COMPACT_VUE = `<project_type>
+Vue 3 project. Files: index.html, main.ts, App.vue (<script setup lang="ts">), style.css. TailwindCSS.
+</project_type>`;
+
+const COMPACT_TYPE_RULES: Record<string, string> = {
+  react: COMPACT_REACT,
+  vue: COMPACT_VUE,
+  html: COMPACT_HTML,
+};
+
+export function buildCompactSystemPrompt(projectType: string): string {
+  const typeRules = COMPACT_TYPE_RULES[projectType] ?? COMPACT_TYPE_RULES["react"];
+
+  return `You are an expert web developer. Generate complete, working code.
+You MAY use <think>...</think> for reasoning. After thinking, output ONLY the artifact.
+
+OUTPUT FORMAT — use EXACTLY this structure:
+<nitArtifact id="project" title="Title">
+<nitAction type="file" filePath="App.tsx">
+(full file content here)
+</nitAction>
+<nitAction type="file" filePath="index.css">
+(full file content here)
+</nitAction>
+</nitArtifact>
+
+RULES:
+- Each file uses <nitAction type="file" filePath="...">content</nitAction>
+- NO markdown fences. NO // === FILE: markers. Use nitAction tags ONLY.
+- Every file COMPLETE. No truncation.
+- If request is vague, ask 2-3 questions (no code). Otherwise generate immediately.
+- Questions in user's language.
+- FORBIDDEN: react-router-dom, framer-motion, axios, any npm package. ONLY React + TailwindCSS.
+- For multi-page UIs: use useState to switch views. NO routing.
+${typeRules}`;
 }

@@ -38,8 +38,21 @@ function initSchema(database: Database.Database): void {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+      content TEXT NOT NULL,
+      timestamp INTEGER NOT NULL,
+      model TEXT,
+      agent_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_versions_project_id ON versions(project_id);
     CREATE INDEX IF NOT EXISTS idx_versions_number ON versions(project_id, version_number DESC);
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_project ON chat_messages(project_id, timestamp ASC);
   `);
 }
 

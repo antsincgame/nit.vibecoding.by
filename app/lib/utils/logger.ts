@@ -1,4 +1,4 @@
-type LogLevel = "warn" | "error";
+type LogLevel = "info" | "warn" | "error";
 
 function formatMessage(level: LogLevel, scope: string, message: string, meta?: unknown): string {
   const timestamp = new Date().toISOString();
@@ -8,6 +8,9 @@ function formatMessage(level: LogLevel, scope: string, message: string, meta?: u
 }
 
 export const logger = {
+  info(scope: string, message: string, meta?: unknown) {
+    console.info(formatMessage("info", scope, message, meta));
+  },
   warn(scope: string, message: string, meta?: unknown) {
     console.warn(formatMessage("warn", scope, message, meta));
   },

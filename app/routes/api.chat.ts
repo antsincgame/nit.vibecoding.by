@@ -17,6 +17,7 @@ const ChatRequestSchema = z.object({
   projectType: z.enum(["react", "html", "vue"]).optional().default("react"),
   temperature: z.number().min(0).max(2).optional().default(0.3),
   maxTokens: z.number().int().min(256).max(32_768).optional().default(8192),
+  contextWindow: z.number().int().min(1024).max(1_000_000).optional().default(8192),
 });
 
 export async function action({ request }: { request: Request }) {
@@ -31,16 +32,17 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ error: detail, code: "INVALID_REQUEST" }, { status: 400 });
   }
 
-  const { messages, provider, model, projectType, temperature, maxTokens } = parsed.data;
+  const { messages, provider, model, projectType, temperature, maxTokens, contextWindow } = parsed.data;
 
   try {
-    const result = await streamText({
+    const { stream: result, tokenBudget } = await streamText({
       messages,
       provider,
       model,
       projectType,
       temperature,
       maxTokens,
+      contextWindow,
       serverEnv: process.env as Record<string, string>,
       abortSignal: request.signal,
     });
@@ -49,9 +51,24 @@ export async function action({ request }: { request: Request }) {
     const readable = new ReadableStream({
       async start(controller) {
         try {
+          if (tokenBudget.overflow) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ warning: "Context window nearly full. Consider clearing chat history for better results." })}\n\n`),
+            );
+          }
+
+          let chunkCount = 0;
           for await (const chunk of result.textStream) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
+            chunkCount++;
           }
+
+          if (chunkCount === 0) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ error: "Модель не вернула ответ. Возможно, модель не загружена в LM Studio. Проверьте, что модель активна." })}\n\n`),
+            );
+          }
+
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
