@@ -111,9 +111,9 @@ ${ERROR_HANDLER_SCRIPT}
 <div id="root"></div>
 <script>window.__APP_CODE__=${JSON.stringify(fullCode)}<\/script>
 <script type="module">
-import React from "https://esm.sh/react@19?bundle";
-import ReactDOM from "https://esm.sh/react-dom@19?bundle";
-import {createRoot} from "https://esm.sh/react-dom@19/client?bundle";
+import React from "https://esm.sh/react@19.0.0";
+import ReactDOM from "https://esm.sh/react-dom@19.0.0?deps=react@19.0.0";
+import {createRoot} from "https://esm.sh/react-dom@19.0.0/client?deps=react@19.0.0";
 
 window.React=React;
 window.ReactDOM=ReactDOM;
