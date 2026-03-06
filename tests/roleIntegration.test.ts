@@ -41,6 +41,7 @@ describe("Role lifecycle integration", () => {
       timeoutMs: 90000,
       maxRetries: 1,
       outputFormat: "freetext",
+        includeNitPrompt: false,
       temperature: 0.5,
     });
     expect(seo.id).toMatch(/^role_/);
@@ -141,6 +142,7 @@ describe("Role lifecycle integration", () => {
       timeoutMs: 60000,
       maxRetries: 0,
       outputFormat: "freetext",
+        includeNitPrompt: false,
       temperature: 0.5,
     });
 

@@ -87,6 +87,10 @@ export const useRoleStore = create<RoleState & RoleActions>((set, get) => ({
         // Handled by usePipelineStreaming directly
         break;
 
+      case "retry_reset":
+        // Handled by usePipelineStreaming — clears accumulated text
+        break;
+
       case "role_selected":
         set((state) => {
           const newState: Partial<RoleState> = {

@@ -26,6 +26,7 @@ const EMPTY_FORM = {
   timeoutMs: 60000,
   maxRetries: 2,
   outputFormat: "freetext" as const,
+  includeNitPrompt: false,
   temperature: 0.7,
 };
 
@@ -50,6 +51,7 @@ export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOv
         timeoutMs: role.timeoutMs,
         maxRetries: role.maxRetries,
         outputFormat: role.outputFormat,
+        includeNitPrompt: role.includeNitPrompt,
         temperature: role.temperature,
       });
     } else {
@@ -269,6 +271,22 @@ export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOv
             className="accent-gold-pure"
           />
           <span className="text-xs text-text-secondary">Активна</span>
+        </label>
+
+        {/* Include NIT prompt toggle */}
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.includeNitPrompt}
+            onChange={(e) => setForm((f) => ({ ...f, includeNitPrompt: e.target.checked }))}
+            className="accent-gold-pure"
+          />
+          <div>
+            <span className="text-xs text-text-secondary">Генерация кода (NIT-промпт)</span>
+            <p className="text-[10px] text-text-muted mt-0.5">
+              Включите для ролей, которые генерируют код. Добавляет инструкции по формату nitArtifact.
+            </p>
+          </div>
         </label>
 
         {/* System Prompt */}

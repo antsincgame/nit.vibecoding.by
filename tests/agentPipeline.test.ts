@@ -166,8 +166,9 @@ describe("agentPipeline", () => {
         "react",
       );
 
-      expect(system).toContain("MOCK_SYSTEM_PROMPT");
-      expect(system).toContain("РОЛЬ АГЕНТА: Архитектор");
+      // Seed roles have includeNitPrompt: false → no NIT system prompt
+      expect(system).not.toContain("MOCK_SYSTEM_PROMPT");
+      expect(system).toContain("РОЛЬ: Архитектор");
       expect(system).toContain(role.systemPrompt);
       expect(user).toContain("ЗАПРОС ПОЛЬЗОВАТЕЛЯ");
       expect(user).toContain("Создай лендинг");

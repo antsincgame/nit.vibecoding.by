@@ -18,14 +18,15 @@ import { buildAgentPrompt, getOrCreateSession } from "~/lib/services/agentPipeli
 import { getAllRoles } from "~/lib/services/roleService";
 
 describe("buildAgentPrompt", () => {
-  it("builds correct system prompt with NIT base + role", () => {
-    const role = getAllRoles(true)[0]!; // Architect
+  it("builds correct system prompt with role only (no NIT prompt for seed roles)", () => {
+    const role = getAllRoles(true)[0]!; // Architect — includeNitPrompt: false
     const memory = getOrCreateSession(`prompt-test-${Date.now()}`, "p1");
 
     const { system, user } = buildAgentPrompt(role, memory, "Создай лендинг", "", "react");
 
-    expect(system).toContain("MOCK"); // NIT system prompt
-    expect(system).toContain("РОЛЬ АГЕНТА: Архитектор");
+    // Seed roles have includeNitPrompt: false → no NIT prompt
+    expect(system).not.toContain("MOCK");
+    expect(system).toContain("РОЛЬ: Архитектор");
     expect(system).toContain(role.systemPrompt);
 
     expect(user).toContain("ЗАПРОС ПОЛЬЗОВАТЕЛЯ");
@@ -95,5 +96,16 @@ describe("buildAgentPrompt", () => {
     expect(user).toContain("Структура сайта");
     expect(user).toContain("Контент страниц");
     expect(user).toContain("---"); // separator
+  });
+
+  it("includes NIT prompt when includeNitPrompt is true", () => {
+    const role = { ...getAllRoles(true)[0]!, includeNitPrompt: true };
+    const memory = getOrCreateSession(`prompt-nit-${Date.now()}`, "p1");
+
+    const { system } = buildAgentPrompt(role, memory, "Создай сайт", "", "react");
+
+    // NIT prompt (mocked as "MOCK") should be present
+    expect(system).toContain("MOCK");
+    expect(system).toContain("РОЛЬ АГЕНТА: Архитектор");
   });
 });

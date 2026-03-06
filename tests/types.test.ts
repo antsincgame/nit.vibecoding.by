@@ -35,6 +35,7 @@ describe("types consistency", () => {
       timeoutMs: 60000,
       maxRetries: 2,
       outputFormat: "freetext",
+      includeNitPrompt: false,
       temperature: 0.7,
       createdAt: "2025-01-01",
       updatedAt: "2025-01-01",
@@ -74,14 +75,15 @@ describe("types consistency", () => {
       { type: "role_selected", roleId: "r1", roleName: "A", selectedBy: "user" },
       { type: "step_start", roleName: "A", model: "m", provider: "p" },
       { type: "text", text: "hello" },
+      { type: "retry_reset" },
       { type: "step_complete", roleName: "A", durationMs: 1000 },
       { type: "chain_progress", current: 1, total: 3 },
       { type: "error", message: "oops" },
       { type: "warning", message: "careful" },
       { type: "done" },
     ];
-    expect(events.length).toBe(9);
+    expect(events.length).toBe(10);
     const types = events.map((e) => e.type);
-    expect(new Set(types).size).toBe(9); // all unique
+    expect(new Set(types).size).toBe(10); // all unique
   });
 });

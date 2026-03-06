@@ -185,6 +185,13 @@ export function usePipelineStreaming() {
                 updateLastAssistantMessage(accumulated);
                 setStreaming({ currentContent: accumulated });
                 break;
+              case "retry_reset":
+                // Model failed mid-stream and is retrying — discard partial text
+                accumulated = "";
+                updateLastAssistantMessage("");
+                setStreaming({ currentContent: "" });
+                logger.warn("pipeline", "Retry: discarding partial text");
+                break;
               case "step_complete":
                 currentDuration = event.durationMs;
                 break;

@@ -21,7 +21,7 @@ function ensureSeed() {
 
   const now = new Date().toISOString();
 
-  const defaults: Omit<AgentRole, "id" | "name" | "description" | "systemPrompt" | "order" | "isLocked" | "outputFormat" | "temperature">
+  const defaults: Omit<AgentRole, "id" | "name" | "description" | "systemPrompt" | "order" | "isLocked" | "outputFormat" | "temperature" | "includeNitPrompt">
     = {
     providerId: "ollama",
     modelName: "mistral",
@@ -41,6 +41,7 @@ function ensureSeed() {
       order: 1,
       isLocked: true,
       outputFormat: "json",
+      includeNitPrompt: false,
       temperature: 0.3,
       systemPrompt: `Ты Архитектор веб-студии. Твоя задача — создать структуру проекта.
 
@@ -88,6 +89,7 @@ function ensureSeed() {
       order: 2,
       isLocked: false,
       outputFormat: "freetext",
+      includeNitPrompt: false,
       temperature: 0.7,
       systemPrompt: `Ты Копирайтер веб-студии. Ты получаешь структуру сайта от Архитектора и наполняешь её контентом.
 
@@ -106,6 +108,7 @@ function ensureSeed() {
       order: 3,
       isLocked: false,
       outputFormat: "freetext",
+      includeNitPrompt: false,
       temperature: 0.2,
       systemPrompt: `Ты Тестировщик веб-студии. Ты проверяешь результат работы предыдущих агентов.
 

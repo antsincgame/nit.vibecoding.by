@@ -13,6 +13,7 @@ export type AgentRole = {
   timeoutMs: number;
   maxRetries: number;
   outputFormat: "freetext" | "json";
+  includeNitPrompt: boolean; // true = prepend NIT code generation prompt (for code-producing roles)
   temperature: number;
   createdAt: string;
   updatedAt: string;
@@ -63,6 +64,7 @@ export type PipelineEvent =
   | { type: "role_selected"; roleId: string; roleName: string; selectedBy: AgentSelectedBy }
   | { type: "step_start"; roleName: string; model: string; provider: string }
   | { type: "text"; text: string }
+  | { type: "retry_reset" }  // signals client to discard accumulated text (retry after partial stream)
   | { type: "step_complete"; roleName: string; durationMs: number }
   | { type: "chain_progress"; current: number; total: number }
   | { type: "error"; message: string; roleName?: string }

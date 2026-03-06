@@ -87,6 +87,7 @@ describe("roleService", () => {
         timeoutMs: 60000,
         maxRetries: 2,
         outputFormat: "freetext",
+        includeNitPrompt: false,
         temperature: 0.5,
       });
 
@@ -115,6 +116,7 @@ describe("roleService", () => {
           timeoutMs: 60000,
           maxRetries: 0,
           outputFormat: "freetext",
+        includeNitPrompt: false,
           temperature: 0.5,
         }),
       ).toThrow(/уже существует/);
@@ -134,6 +136,7 @@ describe("roleService", () => {
           timeoutMs: 60000,
           maxRetries: 0,
           outputFormat: "freetext",
+        includeNitPrompt: false,
           temperature: 0.5,
         }),
       ).toThrow(/уже существует/);
@@ -199,6 +202,7 @@ describe("roleService", () => {
         timeoutMs: 60000,
         maxRetries: 0,
         outputFormat: "freetext",
+        includeNitPrompt: false,
         temperature: 0.5,
       });
 

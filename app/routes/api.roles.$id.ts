@@ -17,6 +17,7 @@ const UpdateRoleSchema = z.object({
   timeoutMs: z.number().int().min(5000).max(300_000).optional(),
   maxRetries: z.number().int().min(0).max(5).optional(),
   outputFormat: z.enum(["freetext", "json"]).optional(),
+  includeNitPrompt: z.boolean().optional(),
   temperature: z.number().min(0).max(2).optional(),
 });
 

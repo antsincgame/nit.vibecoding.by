@@ -25,6 +25,7 @@ const CreateRoleSchema = z.object({
   timeoutMs: z.number().int().min(5000).max(300_000).default(60_000),
   maxRetries: z.number().int().min(0).max(5).default(2),
   outputFormat: z.enum(["freetext", "json"]).default("freetext"),
+  includeNitPrompt: z.boolean().default(false),
   temperature: z.number().min(0).max(2).default(0.7),
 });
 

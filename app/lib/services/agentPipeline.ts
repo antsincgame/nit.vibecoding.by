@@ -115,9 +115,17 @@ export function buildAgentPrompt(
   localContext: string,
   projectType: string,
 ): { system: string; user: string } {
-  const nitSystemPrompt = buildSystemPrompt(projectType);
+  // Only include NIT code generation prompt for roles that produce code (nitArtifact format).
+  // Roles like Architect (JSON), Copywriter (text), Tester (review) should NOT get NIT rules
+  // because they conflict with the role's own output format instructions.
+  let system: string;
 
-  const system = `${nitSystemPrompt}\n\n=== РОЛЬ АГЕНТА: ${role.name} ===\n${role.systemPrompt}`;
+  if (role.includeNitPrompt) {
+    const nitSystemPrompt = buildSystemPrompt(projectType);
+    system = `${nitSystemPrompt}\n\n=== РОЛЬ АГЕНТА: ${role.name} ===\n${role.systemPrompt}`;
+  } else {
+    system = `Ты агент веб-студии.\n\n=== РОЛЬ: ${role.name} ===\n${role.systemPrompt}`;
+  }
 
   const parts: string[] = [];
 
@@ -192,8 +200,9 @@ export async function* executeStepStreaming(
       return;
     }
 
-    // Signal retry to client
+    // Signal retry to client — must reset accumulated text
     if (retryCount > 0) {
+      yield { type: "retry_reset" as const };
       yield { type: "warning", message: `Повтор ${retryCount}/${role.maxRetries}...` };
     }
 
