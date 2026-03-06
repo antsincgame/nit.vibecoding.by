@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AIAgent, AgentSelection } from "@shared/types/agent";
 import { useSettingsStore } from "./settingsStore";
+import { PERPLEXITY_AGENT } from "~/features/agents/constants";
 
 type AgentState = {
   agents: AIAgent[];
@@ -31,16 +32,51 @@ export const useAgentStore = create<AgentState & AgentActions>((set, get) => ({
     set({ agents });
 
     const { selection } = get();
-    if (!selection.agentId && agents.length > 0) {
+    const settings = useSettingsStore.getState();
+
+    const applySelection = (agentId: string, modelId: string) => {
+      set({
+        selection: {
+          ...selection,
+          agentId,
+          modelId,
+          temperature: settings.defaultTemperature,
+        },
+      });
+    };
+
+    if (selection.agentId && agents.some((a) => a.id === selection.agentId)) {
+      const agent = agents.find((a) => a.id === selection.agentId);
+      const modelExists = agent?.models.some((m) => m.id === selection.modelId);
+      if (!modelExists && agent?.models[0]) {
+        applySelection(selection.agentId, agent.models[0].id);
+      }
+      return;
+    }
+
+    if (settings.defaultAgentId === "perplexity" && settings.perplexityApiKey.trim()) {
+      const modelId =
+        PERPLEXITY_AGENT.models.some((m) => m.id === settings.defaultModelId)
+          ? settings.defaultModelId
+          : PERPLEXITY_AGENT.models[0]?.id ?? "";
+      applySelection("perplexity", modelId);
+      return;
+    }
+
+    if (settings.defaultAgentId && agents.some((a) => a.id === settings.defaultAgentId)) {
+      const agent = agents.find((a) => a.id === settings.defaultAgentId)!;
+      const modelId =
+        agent.models.some((m) => m.id === settings.defaultModelId)
+          ? settings.defaultModelId
+          : agent.models[0]?.id ?? "";
+      applySelection(settings.defaultAgentId, modelId);
+      return;
+    }
+
+    if (agents.length > 0) {
       const onlineAgent = agents.find((a) => a.status === "online");
       if (onlineAgent && onlineAgent.models.length > 0) {
-        set({
-          selection: {
-            ...selection,
-            agentId: onlineAgent.id,
-            modelId: onlineAgent.models[0]?.id ?? "",
-          },
-        });
+        applySelection(onlineAgent.id, onlineAgent.models[0]?.id ?? "");
       }
     }
   },
@@ -54,6 +90,10 @@ export const useAgentStore = create<AgentState & AgentActions>((set, get) => ({
 
   getSelectedAgent: () => {
     const { agents, selection } = get();
+    if (selection.agentId === "perplexity") {
+      const hasKey = useSettingsStore.getState().perplexityApiKey.trim().length > 0;
+      return hasKey ? PERPLEXITY_AGENT : undefined;
+    }
     return agents.find((a) => a.id === selection.agentId);
   },
 }));

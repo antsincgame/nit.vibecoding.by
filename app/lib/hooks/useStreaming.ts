@@ -2,7 +2,8 @@ import { useCallback, useRef } from "react";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { useAgentStore } from "~/lib/stores/agentStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
-import { estimateTokens } from "~/lib/utils/tokenEstimator";
+import { logger } from "~/lib/utils/logger";
+import { buildMessageHistoryFromMessages } from "~/lib/utils/messageHistory";
 import { IncrementalArtifactParser } from "~/lib/utils/codeParser";
 
 type StreamOptions = {
@@ -12,57 +13,18 @@ type StreamOptions = {
   temperature?: number;
   maxTokens?: number;
   contextWindow?: number;
+  perplexityApiKey?: string;
 };
 
 type SSEPayload = { text?: string; error?: string; warning?: string };
 
 const DEFAULT_CONTEXT_WINDOW = 8192;
-const HISTORY_BUDGET_RATIO = 0.4;
-const MIN_ASSISTANT_PREVIEW = 200;
 
 function getSelectedContextWindow(): number {
-  const { agents, selection } = useAgentStore.getState();
-  const agent = agents.find((a) => a.id === selection.agentId);
+  const agent = useAgentStore.getState().getSelectedAgent();
   if (!agent) return DEFAULT_CONTEXT_WINDOW;
-  const model = agent.models.find((m) => m.id === selection.modelId);
+  const model = agent.models.find((m) => m.id === useAgentStore.getState().selection.modelId);
   return model?.contextLength ?? DEFAULT_CONTEXT_WINDOW;
-}
-
-function buildMessageHistory(contextWindow: number): Array<{ id: string; role: string; content: string }> {
-  const all = useChatStore.getState().messages;
-
-  const last = all[all.length - 1];
-  const messages = last && last.role === "assistant" && !last.content
-    ? all.slice(0, -1)
-    : all;
-
-  const historyBudget = Math.floor(contextWindow * HISTORY_BUDGET_RATIO);
-  let usedTokens = 0;
-  const result: Array<{ id: string; role: string; content: string }> = [];
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i]!;
-    const contentTokens = estimateTokens(m.content);
-
-    if (usedTokens + contentTokens <= historyBudget) {
-      result.unshift({ id: m.id, role: m.role, content: m.content });
-      usedTokens += contentTokens;
-    } else if (m.role === "user") {
-      const remaining = historyBudget - usedTokens;
-      if (remaining > 50) {
-        const charLimit = Math.floor(remaining * 3.5);
-        result.unshift({ id: m.id, role: m.role, content: m.content.slice(0, charLimit) });
-      }
-      break;
-    } else {
-      const preview = m.content.slice(0, MIN_ASSISTANT_PREVIEW).trimEnd();
-      result.unshift({ id: m.id, role: m.role, content: preview ? `${preview}…[truncated]` : "" });
-      usedTokens += estimateTokens(preview) + 5;
-      if (usedTokens >= historyBudget) break;
-    }
-  }
-
-  return result;
 }
 
 function processSSEBuffer(
@@ -97,7 +59,7 @@ function processSSEBuffer(
         break;
       }
       if (parsed.warning) {
-        console.warn("[NIT.BY]", parsed.warning);
+        logger.warn("streaming", parsed.warning);
       }
       if (parsed.text) {
         onText(parsed.text);
@@ -154,20 +116,26 @@ export function useStreaming() {
 
       try {
         const ctxWindow = options.contextWindow ?? getSelectedContextWindow();
-        const allMessages = buildMessageHistory(ctxWindow);
+        const messages = useChatStore.getState().messages;
+        const allMessages = buildMessageHistoryFromMessages(messages, ctxWindow);
+
+        const body: Record<string, unknown> = {
+          messages: allMessages,
+          provider: options.provider,
+          model: options.model,
+          projectType: options.projectType ?? "react",
+          temperature: options.temperature ?? 0.3,
+          maxTokens: options.maxTokens ?? 8192,
+          contextWindow: ctxWindow,
+        };
+        if (options.provider === "perplexity" && options.perplexityApiKey?.trim()) {
+          body.perplexityApiKey = options.perplexityApiKey.trim();
+        }
 
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: allMessages,
-            provider: options.provider,
-            model: options.model,
-            projectType: options.projectType ?? "react",
-            temperature: options.temperature ?? 0.3,
-            maxTokens: options.maxTokens ?? 8192,
-            contextWindow: ctxWindow,
-          }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
 

@@ -7,6 +7,9 @@ type AppSettings = {
   editorFontSize: number;
   language: "ru" | "en";
   autoSave: boolean;
+  defaultAgentId: string;
+  defaultModelId: string;
+  perplexityApiKey: string;
 };
 
 type SettingsActions = {
@@ -20,6 +23,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   editorFontSize: 13,
   language: "ru",
   autoSave: true,
+  defaultAgentId: "",
+  defaultModelId: "",
+  perplexityApiKey: "",
 };
 
 export const useSettingsStore = create<AppSettings & SettingsActions>()(

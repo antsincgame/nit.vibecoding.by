@@ -26,12 +26,15 @@ type Pages = {
   "/api/versions": {
     params: {};
   };
+  "/api/messages": {
+    params: {};
+  };
 };
 
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/api/chat" | "/api/agents" | "/api/projects" | "/api/versions";
+    page: "/" | "/api/chat" | "/api/agents" | "/api/projects" | "/api/versions" | "/api/messages";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -53,6 +56,10 @@ type RouteFiles = {
     id: "routes/api.versions";
     page: "/api/versions";
   };
+  "routes/api.messages.ts": {
+    id: "routes/api.messages";
+    page: "/api/messages";
+  };
 };
 
 type RouteModules = {
@@ -62,4 +69,5 @@ type RouteModules = {
   "routes/api.agents": typeof import("./app/routes/api.agents.ts");
   "routes/api.projects": typeof import("./app/routes/api.projects.ts");
   "routes/api.versions": typeof import("./app/routes/api.versions.ts");
+  "routes/api.messages": typeof import("./app/routes/api.messages.ts");
 };

@@ -14,7 +14,7 @@ import { useT } from "~/lib/utils/i18n";
 
 export function ChatPanel() {
   const { messages, streaming, isChatLoading } = useChatStore();
-  const { selection, agents } = useAgentStore();
+  const { selection, getSelectedAgent } = useAgentStore();
   const { currentProject } = useProjectStore();
   const { generate, stop } = useStreaming();
   const { create: createProject } = useProjects();
@@ -25,7 +25,8 @@ export function ChatPanel() {
   const lastOptionsRef = useRef({ model: "", agentId: "", temperature: 0.3 });
 
   const t = useT();
-  const hasAgent = agents.some((a) => a.id === selection.agentId && a.status === "online");
+  const selectedAgent = useAgentStore((s) => s.getSelectedAgent());
+  const hasAgent = Boolean(selectedAgent);
 
   useEffect(() => {
     if (wasStreamingRef.current && !streaming.isStreaming) {
@@ -56,7 +57,7 @@ export function ChatPanel() {
   const handleSubmit = async (prompt: string) => {
     if (!selection.agentId || !selection.modelId) return;
 
-    const agent = agents.find((a) => a.id === selection.agentId);
+    const agent = getSelectedAgent();
     if (!agent) return;
 
     const provider = agent.id;
@@ -80,12 +81,16 @@ export function ChatPanel() {
         }
       }
 
-      generate(prompt, {
+      const opts: Parameters<typeof generate>[1] = {
         provider,
         model: selection.modelId,
         temperature: selection.temperature,
         projectType: currentProject?.type ?? defaultProjectType,
-      });
+      };
+      if (provider === "perplexity") {
+        opts.perplexityApiKey = useSettingsStore.getState().perplexityApiKey;
+      }
+      generate(prompt, opts);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
       useChatStore.getState().setStreaming({ error: msg });

@@ -1,5 +1,4 @@
 import { GlowText } from "~/components/ui/GlowText";
-import { AgentSelector } from "~/components/chat/AgentSelector";
 import { useUIStore } from "~/lib/stores/uiStore";
 
 export function Header() {
@@ -26,9 +25,7 @@ export function Header() {
         </GlowText>
       </div>
 
-      <div className="flex-1 min-w-0 flex justify-center">
-        <AgentSelector />
-      </div>
+      <div className="flex-1 min-w-0" />
 
       <div className="flex items-center flex-shrink-0">
         <button
