@@ -5,7 +5,6 @@ import {
   getOrCreateSession,
   selectRole,
   executeStepStreaming,
-  executeChain,
 } from "~/lib/services/agentPipeline";
 import { executeOrchestrated } from "~/lib/services/orchestrator";
 
