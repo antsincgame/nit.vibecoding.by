@@ -9,6 +9,8 @@ import { AgentRoleForm } from "~/components/settings/agents/AgentRoleForm";
 import { PromptTester } from "~/components/settings/agents/PromptTester";
 import { PromptHistory } from "~/components/settings/agents/PromptHistory";
 
+import { Link } from "react-router";
+
 export default function SettingsAgentsPage() {
   const [roles, setRoles] = useState<AgentRole[]>([]);
   const [providers, setProviders] = useState<AIAgent[]>([]);
@@ -160,9 +162,11 @@ export default function SettingsAgentsPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <NeonButton variant="ghost" size="sm" onClick={() => window.history.back()}>
-              ← Назад
-            </NeonButton>
+            <Link to="/">
+              <NeonButton variant="ghost" size="sm">
+                ← Назад
+              </NeonButton>
+            </Link>
             <NeonButton variant="primary" size="sm" onClick={handleCreate}>
               + Новая роль
             </NeonButton>

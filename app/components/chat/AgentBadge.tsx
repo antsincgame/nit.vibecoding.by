@@ -4,6 +4,7 @@ import { cn } from "~/lib/utils/cn";
 const ROLE_ICONS: Record<string, string> = {
   "Архитектор": "🏗️",
   "Копирайтер": "✍️",
+  "Кодер": "💻",
   "Тестировщик": "🧪",
 };
 

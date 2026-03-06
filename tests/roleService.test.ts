@@ -32,10 +32,11 @@ describe("roleService", () => {
   describe("getAllRoles", () => {
     it("returns seeded roles sorted by order", () => {
       const roles = getAllRoles();
-      expect(roles.length).toBeGreaterThanOrEqual(3);
+      expect(roles.length).toBeGreaterThanOrEqual(4);
       expect(roles[0]!.name).toBe("Архитектор");
       expect(roles[1]!.name).toBe("Копирайтер");
-      expect(roles[2]!.name).toBe("Тестировщик");
+      expect(roles[2]!.name).toBe("Кодер");
+      expect(roles[3]!.name).toBe("Тестировщик");
 
       // Verify sorted by order
       for (let i = 1; i < roles.length; i++) {

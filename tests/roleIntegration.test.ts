@@ -22,7 +22,7 @@ describe("Role lifecycle integration", () => {
   it("full CRUD lifecycle", () => {
     // 1. Get initial seed roles
     const initial = getAllRoles();
-    expect(initial.length).toBeGreaterThanOrEqual(3);
+    expect(initial.length).toBeGreaterThanOrEqual(4);
 
     const architect = getLockedRole();
     expect(architect).not.toBeNull();
@@ -106,6 +106,21 @@ describe("Role lifecycle integration", () => {
     for (const role of roles) {
       expect(validProviderIds).toContain(role.providerId);
     }
+  });
+
+  it("Кодер role has includeNitPrompt: true", () => {
+    const coder = getRoleById("role_coder");
+    expect(coder).not.toBeNull();
+    expect(coder!.includeNitPrompt).toBe(true);
+    expect(coder!.name).toBe("Кодер");
+
+    // Other seed roles should NOT have NIT prompt
+    const architect = getRoleById("role_architect");
+    const copywriter = getRoleById("role_copywriter");
+    const tester = getRoleById("role_tester");
+    expect(architect!.includeNitPrompt).toBe(false);
+    expect(copywriter!.includeNitPrompt).toBe(false);
+    expect(tester!.includeNitPrompt).toBe(false);
   });
 
   it("all seed roles have valid system prompts", () => {

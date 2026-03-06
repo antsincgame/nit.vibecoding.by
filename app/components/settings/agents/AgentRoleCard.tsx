@@ -5,6 +5,7 @@ import { cn } from "~/lib/utils/cn";
 const ROLE_ICONS: Record<string, string> = {
   "Архитектор": "🏗️",
   "Копирайтер": "✍️",
+  "Кодер": "💻",
   "Тестировщик": "🧪",
 };
 
@@ -69,6 +70,11 @@ export function AgentRoleCard({
               🔒 locked
             </span>
           )}
+          {role.includeNitPrompt && (
+            <span className="text-[9px] px-1.5 py-0.5 bg-neon-cyan/10 text-neon-cyan rounded border border-neon-cyan/20">
+              💻 код
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-text-muted">#{role.order}</span>
@@ -102,7 +108,9 @@ export function AgentRoleCard({
       {/* Prompt preview */}
       <div className="bg-deep-space/60 rounded p-2 border border-border-subtle">
         <p className="text-[10px] text-text-muted font-mono line-clamp-2">
-          {role.systemPrompt.slice(0, 150)}...
+          {role.systemPrompt.length > 150
+            ? `${role.systemPrompt.slice(0, 150)}...`
+            : role.systemPrompt}
         </p>
       </div>
 

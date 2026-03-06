@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AgentRole, RoleSelection, PipelineEvent } from "@shared/types/agentRole";
-import { AUTO_ROLE_ID } from "@shared/types/agentRole";
+import { CHAIN_ROLE_ID } from "@shared/types/agentRole";
 
 type PipelineStatus = "idle" | "selecting" | "running" | "chain_running" | "error";
 
@@ -41,7 +41,7 @@ type RoleActions = {
 
 export const useRoleStore = create<RoleState & RoleActions>((set, get) => ({
   roles: [],
-  selection: { roleId: AUTO_ROLE_ID, localContext: "" },
+  selection: { roleId: CHAIN_ROLE_ID, localContext: "" },
   pipelineSessionId: null,
   pipelineStatus: "idle",
   isChainMode: false,

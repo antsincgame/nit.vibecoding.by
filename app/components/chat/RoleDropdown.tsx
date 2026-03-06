@@ -5,13 +5,11 @@ import { cn } from "~/lib/utils/cn";
 export function RoleDropdown() {
   const { roles, selection, pipelineSessionId, pipelineStatus, setRoleSelection } = useRoleStore();
 
-  // New session → force Architect, disabled
+  // New session → lock to chain (Architect is always first step in chain)
   const isNewSession = !pipelineSessionId;
   const isRunning = pipelineStatus === "running" || pipelineStatus === "chain_running";
 
-  const lockedRole = roles.find((r) => r.isLocked);
-
-  const effectiveRoleId = isNewSession && lockedRole ? lockedRole.id : selection.roleId;
+  const effectiveRoleId = isNewSession ? CHAIN_ROLE_ID : selection.roleId;
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -40,6 +38,11 @@ export function RoleDropdown() {
         <option value={AUTO_ROLE_ID}>🤖 Авто (LLM-роутер)</option>
         <option value={CHAIN_ROLE_ID}>⚡ Цепочка (все по порядку)</option>
       </select>
+      {isNewSession && (
+        <span className="text-[9px] text-text-muted">
+          Первый запрос запускает полную цепочку
+        </span>
+      )}
     </div>
   );
 }
