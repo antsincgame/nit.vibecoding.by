@@ -7,6 +7,7 @@ import {
   executeStepStreaming,
   executeChain,
 } from "~/lib/services/agentPipeline";
+import { executeOrchestrated } from "~/lib/services/orchestrator";
 
 const ExecuteSchema = z.object({
   projectId: z.string().min(1),
@@ -40,13 +41,13 @@ export async function action({ request }: { request: Request }) {
   const memory = getOrCreateSession(sessionId, projectId);
   const encoder = new TextEncoder();
 
-  // ─── Chain mode ────────────────────────────────────────
+  // ─── Chain mode (orchestrated) ──────────────────────────
   if (roleId === CHAIN_ROLE_ID) {
     const readable = new ReadableStream({
       async start(controller) {
         try {
           controller.enqueue(encoder.encode(sseEncode({ type: "session_init", sessionId })));
-          const gen = executeChain(memory, message, localContext, projectType, request.signal);
+          const gen = executeOrchestrated(memory, message, localContext, projectType, request.signal);
           for await (const event of gen) {
             controller.enqueue(encoder.encode(sseEncode(event)));
           }
