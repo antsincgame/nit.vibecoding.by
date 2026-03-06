@@ -15,6 +15,13 @@ interface AgentRoleCardProps {
   onDelete: () => void;
   onTest: () => void;
   onHistory: () => void;
+  // Drag & drop
+  isDragging?: boolean;
+  isDragOver?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: () => void;
 }
 
 export function AgentRoleCard({
@@ -24,14 +31,37 @@ export function AgentRoleCard({
   onDelete,
   onTest,
   onHistory,
+  isDragging,
+  isDragOver,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
 }: AgentRoleCardProps) {
   const icon = ROLE_ICONS[role.name] ?? "🤖";
+  const canDrag = !role.isLocked;
 
   return (
-    <div className="glass rounded-lg border border-border-subtle p-4 space-y-3">
+    <div
+      draggable={canDrag}
+      onDragStart={canDrag ? onDragStart : undefined}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      className={cn(
+        "glass rounded-lg border p-4 space-y-3 transition-all",
+        isDragging && "opacity-40 scale-[0.98]",
+        isDragOver && "border-gold-pure/50 bg-gold-pure/5",
+        !isDragging && !isDragOver && "border-border-subtle",
+        canDrag && "cursor-grab active:cursor-grabbing",
+      )}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {canDrag && (
+            <span className="text-text-muted/40 text-xs select-none" title="Перетащите для сортировки">⠿</span>
+          )}
           <span className="text-lg">{icon}</span>
           <h3 className="text-sm font-heading text-text-primary">{role.name}</h3>
           {role.isLocked && (

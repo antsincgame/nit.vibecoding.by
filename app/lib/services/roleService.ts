@@ -243,10 +243,16 @@ export function deleteRole(id: string): boolean {
 export function reorderRoles(orderedIds: string[]): void {
   ensureSeed();
 
+  // Find the highest order among locked roles
+  const maxLockedOrder = Array.from(roles.values())
+    .filter((r) => r.isLocked)
+    .reduce((max, r) => Math.max(max, r.order), 0);
+
+  // Assign orders starting after locked roles
   orderedIds.forEach((id, index) => {
     const role = roles.get(id);
     if (role && !role.isLocked) {
-      role.order = index + 1;
+      role.order = maxLockedOrder + index + 1;
       role.updatedAt = new Date().toISOString();
     }
   });

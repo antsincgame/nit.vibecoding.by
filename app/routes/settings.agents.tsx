@@ -22,6 +22,10 @@ export default function SettingsAgentsPage() {
   const [historyRole, setHistoryRole] = useState<AgentRole | null>(null);
   const [formPromptOverride, setFormPromptOverride] = useState<string | null>(null);
 
+  // Drag & drop state
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -112,6 +116,36 @@ export default function SettingsAgentsPage() {
     return provider?.status === "online";
   };
 
+  const handleDrop = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    // Don't allow moving locked roles
+    const fromRole = roles[fromIndex];
+    if (!fromRole || fromRole.isLocked) return;
+
+    // Reorder locally first (optimistic)
+    const newRoles = [...roles];
+    const [moved] = newRoles.splice(fromIndex, 1);
+    newRoles.splice(toIndex, 0, moved!);
+    setRoles(newRoles);
+
+    // Send reorder to server (excluding locked roles from reorder list)
+    const orderedIds = newRoles.filter((r) => !r.isLocked).map((r) => r.id);
+    try {
+      const res = await fetch("/api/roles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!res.ok) throw new Error("Reorder failed");
+      // Reload to get updated order numbers
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reorder failed");
+      await loadData(); // Revert to server state
+    }
+  };
+
   return (
     <SacredBackground pattern="flower" className="min-h-screen">
       <div className="max-w-3xl mx-auto px-6 py-8">
@@ -177,7 +211,7 @@ export default function SettingsAgentsPage() {
         {/* Role list */}
         {!loading && (
           <div className="space-y-4">
-            {roles.map((role) => (
+            {roles.map((role, index) => (
               <AgentRoleCard
                 key={role.id}
                 role={role}
@@ -186,6 +220,16 @@ export default function SettingsAgentsPage() {
                 onDelete={() => handleDelete(role)}
                 onTest={() => setTestingRole(role)}
                 onHistory={() => setHistoryRole(role)}
+                isDragging={dragIndex === index}
+                isDragOver={dragOverIndex === index}
+                onDragStart={() => setDragIndex(index)}
+                onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
+                onDrop={() => {
+                  if (dragIndex !== null) handleDrop(dragIndex, index);
+                  setDragIndex(null);
+                  setDragOverIndex(null);
+                }}
               />
             ))}
             {roles.length === 0 && (

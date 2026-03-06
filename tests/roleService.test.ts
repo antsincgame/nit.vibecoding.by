@@ -217,7 +217,7 @@ describe("roleService", () => {
   });
 
   describe("reorderRoles", () => {
-    it("updates order for non-locked roles", () => {
+    it("updates order for non-locked roles starting after locked", () => {
       // Architect is locked at order 1
       reorderRoles(["role_tester", "role_copywriter"]);
 
@@ -225,9 +225,9 @@ describe("roleService", () => {
       const copywriter = getRoleById("role_copywriter");
       const architect = getRoleById("role_architect");
 
-      expect(tester!.order).toBe(1); // first in reorder list
-      expect(copywriter!.order).toBe(2);
       expect(architect!.order).toBe(1); // locked, unchanged
+      expect(tester!.order).toBe(2);    // first non-locked → maxLockedOrder(1) + 0 + 1 = 2
+      expect(copywriter!.order).toBe(3); // second non-locked → 1 + 1 + 1 = 3
     });
   });
 
