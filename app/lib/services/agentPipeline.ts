@@ -355,11 +355,6 @@ export async function* executeChain(
       yield { type: "error", message: `${role.name}: шаг завершился без результата`, roleName: role.name };
       return;
     }
-
-    // Visual separator between chain steps
-    if (i < total - 1) {
-      yield { type: "text", text: `\n\n━━━ ${role.name} завершён ━━━\n\n` };
-    }
   }
 
   yield { type: "done" };

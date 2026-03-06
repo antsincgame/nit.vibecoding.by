@@ -15,11 +15,6 @@ type PipelineStreamOptions = {
   sessionId?: string;
 };
 
-/**
- * Parse SSE buffer line-by-line.
- * Returns: { remaining buffer, done flag, error if pipeline sent error event }
- * Does NOT throw — returns error as data so caller can handle cleanup.
- */
 function parsePipelineSSE(
   buffer: string,
   onEvent: (event: PipelineEvent) => void,
@@ -46,14 +41,11 @@ function parsePipelineSSE(
 
     try {
       const parsed = JSON.parse(payload) as PipelineEvent;
-
       if (parsed.type === "error") {
-        // Don't throw — capture error and break cleanly
         pipelineError = parsed.message;
-        onEvent(parsed); // Still forward so roleStore updates UI
+        onEvent(parsed);
         break;
       }
-
       onEvent(parsed);
     } catch {
       // skip malformed JSON
@@ -63,16 +55,10 @@ function parsePipelineSSE(
   return { remaining, done, pipelineError };
 }
 
-/**
- * Generation counter protects against race conditions:
- * Double-click Generate won't cause gen1's finally to null gen2's controller.
- */
 let generationCounter = 0;
 
-/** Module-level abort controller — accessible from outside React for project switch */
+/** Abort any active pipeline stream. Called from project switch. */
 let activeAbortController: AbortController | null = null;
-
-/** Abort any active pipeline stream. Safe to call from anywhere. */
 export function abortActivePipeline() {
   if (activeAbortController) {
     activeAbortController.abort();
@@ -94,7 +80,6 @@ export function usePipelineStreaming() {
 
   const generate = useCallback(
     async (prompt: string, options: PipelineStreamOptions) => {
-      // Abort previous request if still running
       if (abortRef.current) abortRef.current.abort();
 
       const controller = new AbortController();
@@ -104,30 +89,49 @@ export function usePipelineStreaming() {
       const thisGenId = ++generationCounter;
       genIdRef.current = thisGenId;
 
+      const isChainMode = options.roleId === CHAIN_ROLE_ID;
       useRoleStore.getState().resetPipeline();
+      if (isChainMode) useRoleStore.getState().setChainMode(true);
 
-      // Tell the store if this is chain mode so UI knows before server events arrive
-      if (options.roleId === CHAIN_ROLE_ID) {
-        useRoleStore.getState().setChainMode(true);
-      }
-
+      // User message
       addMessage({ id: crypto.randomUUID(), role: "user", content: prompt, timestamp: Date.now() });
+
+      // First assistant placeholder
       addMessage({ id: crypto.randomUUID(), role: "assistant", content: "", timestamp: Date.now() });
 
       setStreaming({ isStreaming: true, currentContent: "", error: null });
 
-      // State accumulated across the stream
-      let accumulated = "";
+      // Track per-step state
+      let accumulated = "";      // text for CURRENT step
       let currentRoleName: string | undefined;
       let currentSelectedBy: string | undefined;
       let currentDuration: number | undefined;
       let currentModel: string | undefined;
       let currentProvider: string | undefined;
+      let stepCount = 0;         // how many role_selected we've seen
       let pipelineError: string | null = null;
 
       const parser = new IncrementalArtifactParser((filePath, content) => {
         updateGeneratedFile(filePath, content);
       });
+
+      // Helper: finalize current assistant message with metadata
+      const finalizeCurrentMessage = () => {
+        const chatStore = useChatStore.getState();
+        const msgs = [...chatStore.messages];
+        const lastIdx = msgs.findLastIndex((m) => m.role === "assistant");
+        if (lastIdx >= 0) {
+          msgs[lastIdx] = {
+            ...msgs[lastIdx]!,
+            agentRoleName: currentRoleName,
+            selectedBy: currentSelectedBy,
+            durationMs: currentDuration,
+            model: currentModel,
+            agentId: currentProvider,
+          };
+          useChatStore.setState({ messages: msgs });
+        }
+      };
 
       try {
         const response = await fetch("/api/pipeline/execute", {
@@ -162,7 +166,6 @@ export function usePipelineStreaming() {
           sseBuffer += decoder.decode(value, { stream: true });
 
           const result = parsePipelineSSE(sseBuffer, (event) => {
-            // Forward to role store for UI status
             useRoleStore.getState().handlePipelineEvent(event);
 
             switch (event.type) {
@@ -171,71 +174,76 @@ export function usePipelineStreaming() {
                   (event as Extract<PipelineEvent, { type: "session_init" }>).sessionId,
                 );
                 break;
+
               case "role_selected":
+                // In chain mode: finalize previous message and start new one
+                if (isChainMode && stepCount > 0) {
+                  finalizeCurrentMessage();
+                  // Add new assistant message for next agent
+                  addMessage({
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    content: "",
+                    timestamp: Date.now(),
+                  });
+                  accumulated = "";
+                }
+                stepCount++;
                 currentRoleName = event.roleName;
                 currentSelectedBy = event.selectedBy;
+                currentDuration = undefined;
+                currentModel = undefined;
+                currentProvider = undefined;
                 break;
+
               case "step_start":
                 currentModel = event.model;
                 currentProvider = event.provider;
                 break;
+
               case "text":
                 accumulated += event.text;
                 parser.push(event.text);
                 updateLastAssistantMessage(accumulated);
                 setStreaming({ currentContent: accumulated });
                 break;
+
               case "retry_reset":
-                // Model failed mid-stream and is retrying — discard partial text
                 accumulated = "";
                 updateLastAssistantMessage("");
                 setStreaming({ currentContent: "" });
                 logger.warn("pipeline", "Retry: discarding partial text");
                 break;
+
               case "step_complete":
                 currentDuration = event.durationMs;
                 break;
+
               case "warning":
                 logger.warn("pipeline", event.message);
                 break;
+
               case "done":
                 break;
-              // "error" is handled by parsePipelineSSE — sets pipelineError
             }
           });
 
           sseBuffer = result.remaining;
-
           if (result.pipelineError) {
             pipelineError = result.pipelineError;
-            break; // Exit reader loop cleanly
+            break;
           }
           if (result.done) break;
         }
 
-        // ALWAYS flush parser — even on error, extract whatever files were parsed
         parser.flush();
 
-        // ALWAYS update assistant message metadata
-        const chatStore = useChatStore.getState();
-        const msgs = [...chatStore.messages];
-        const lastIdx = msgs.findLastIndex((m) => m.role === "assistant");
-        if (lastIdx >= 0) {
-          msgs[lastIdx] = {
-            ...msgs[lastIdx]!,
-            agentRoleName: currentRoleName,
-            selectedBy: currentSelectedBy,
-            durationMs: currentDuration,
-            model: currentModel,
-            agentId: currentProvider,
-          };
-          useChatStore.setState({ messages: msgs });
-        }
+        // Finalize the last (or only) assistant message
+        finalizeCurrentMessage();
 
-        // Set final state based on outcome
         if (pipelineError) {
           setStreaming({ isStreaming: false, error: pipelineError });
-        } else if (!accumulated.trim()) {
+        } else if (!accumulated.trim() && !isChainMode) {
           setStreaming({
             isStreaming: false,
             error: "Агент не сгенерировал ответ. Проверьте модель и провайдер.",
@@ -245,13 +253,10 @@ export function usePipelineStreaming() {
         }
 
         useRoleStore.getState().handlePipelineEvent({ type: "done" });
-
         const pid = useProjectStore.getState().currentProject?.id;
         if (pid) persistToDb(pid);
       } catch (err) {
-        // AbortError = user clicked Stop
         if ((err as Error).name === "AbortError") {
-          // Still flush parser for whatever was received
           parser.flush();
           setStreaming({ isStreaming: false });
           useRoleStore.getState().resetPipeline();
@@ -260,12 +265,10 @@ export function usePipelineStreaming() {
           return;
         }
 
-        // Network error / unexpected error
         parser.flush();
         const errorMessage = err instanceof Error ? err.message : "Pipeline failed";
         setStreaming({ isStreaming: false, error: errorMessage });
         useRoleStore.getState().handlePipelineEvent({ type: "error", message: errorMessage });
-
         const pid = useProjectStore.getState().currentProject?.id;
         if (pid) persistToDb(pid);
       } finally {

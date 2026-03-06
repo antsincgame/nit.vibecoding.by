@@ -7,7 +7,7 @@ import { useRoleStore } from "~/lib/stores/roleStore";
 import { usePipelineStreaming } from "~/lib/hooks/usePipelineStreaming";
 import { useProjects } from "~/features/projects/hooks/useProjects";
 import { useVersionHistory } from "~/features/projects/hooks/useVersionHistory";
-import { parseGeneratedCode, sanitizeVersionCode } from "~/lib/utils/codeParser";
+import { sanitizeVersionCode } from "~/lib/utils/codeParser";
 import { MessageList } from "./MessageList";
 import { PromptInput } from "./PromptInput";
 import { RoleDropdown } from "./RoleDropdown";
@@ -44,23 +44,31 @@ export function ChatPanel() {
   // Auto-save version when streaming completes
   useEffect(() => {
     if (wasStreamingRef.current && !streaming.isStreaming) {
-      const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
-      if (!lastAssistant?.content) return;
+      // Use generatedCode from store — populated by IncrementalArtifactParser during streaming.
+      // Don't re-parse from last message: in chain mode, last message is Tester review, not Coder code.
+      const { generatedCode } = useChatStore.getState();
+      const sanitized = Object.keys(generatedCode).length > 0
+        ? sanitizeVersionCode(generatedCode)
+        : {};
 
-      const code = parseGeneratedCode(lastAssistant.content);
-      const sanitized = sanitizeVersionCode(code);
-      if (Object.keys(sanitized).length === 0) return;
+      if (Object.keys(sanitized).length === 0) {
+        wasStreamingRef.current = streaming.isStreaming;
+        return;
+      }
+
+      // Read model/agentId from the message that produced code (may not be last in chain)
+      const lastAssistant = [...messages].reverse().find(
+        (m) => m.role === "assistant" && m.agentRoleName,
+      );
 
       const project = useProjectStore.getState().currentProject;
       if (project) {
         if (useSettingsStore.getState().autoSave) {
-          // Read model/agent info from the assistant message metadata
-          // (set by usePipelineStreaming after streaming completes)
           saveVersion({
             code: sanitized,
             prompt: lastPromptRef.current,
-            model: lastAssistant.model ?? "",
-            agentId: lastAssistant.agentId ?? "",
+            model: lastAssistant?.model ?? "",
+            agentId: lastAssistant?.agentId ?? "",
             temperature: 0.3,
           });
         }
