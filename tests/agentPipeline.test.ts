@@ -132,6 +132,25 @@ describe("agentPipeline", () => {
       const { role, selectedBy } = await selectRole(sessionId, "__auto__", "напиши текст");
       expect(selectedBy).toBe("router_llm");
     });
+
+    it("respects forceRole on new session (bypasses Architect lock)", async () => {
+      const sessionId = `force-session-${Date.now()}`;
+      // New session — no steps
+      getOrCreateSession(sessionId, "proj-1");
+
+      const { role, selectedBy } = await selectRole(sessionId, "role_copywriter", "test", true);
+      expect(role.name).toBe("Копирайтер");
+      expect(selectedBy).toBe("user");
+    });
+
+    it("forceRole false still forces Architect on new session", async () => {
+      const sessionId = `no-force-session-${Date.now()}`;
+      getOrCreateSession(sessionId, "proj-1");
+
+      const { role, selectedBy } = await selectRole(sessionId, "role_copywriter", "test", false);
+      expect(role.name).toBe("Архитектор");
+      expect(selectedBy).toBe("hardcoded");
+    });
   });
 
   describe("buildAgentPrompt", () => {

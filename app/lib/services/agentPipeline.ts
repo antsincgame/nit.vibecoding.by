@@ -70,9 +70,16 @@ export async function selectRole(
   sessionId: string,
   roleId: string,
   userMessage: string,
+  forceRole = false,
 ): Promise<{ role: AgentRole; selectedBy: AgentSelectedBy }> {
   const memory = sessions.get(sessionId);
   const isNewSession = !memory || memory.steps.length === 0;
+
+  // Rule 0: forceRole bypasses new-session Architect lock (used by PromptTester)
+  if (forceRole && roleId && roleId !== CHAIN_ROLE_ID && roleId !== AUTO_ROLE_ID) {
+    const role = getRoleById(roleId);
+    if (role && role.isActive) return { role, selectedBy: "user" };
+  }
 
   // Rule 1: New session → always Architect
   if (isNewSession) {

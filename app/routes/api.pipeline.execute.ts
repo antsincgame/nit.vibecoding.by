@@ -12,6 +12,7 @@ const ExecuteSchema = z.object({
   projectId: z.string().min(1),
   sessionId: z.string().optional(),
   roleId: z.string().default(""),
+  forceRole: z.boolean().default(false), // bypass new-session Architect lock (for testing)
   message: z.string().min(1).max(128_000),
   localContext: z.string().max(10_000).default(""),
   projectType: z.enum(["react", "html", "vue"]).default("react"),
@@ -33,7 +34,7 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ error: detail }, { status: 400 });
   }
 
-  const { projectId, roleId, message, localContext, projectType } = parsed.data;
+  const { projectId, roleId, forceRole, message, localContext, projectType } = parsed.data;
   const sessionId = parsed.data.sessionId ?? crypto.randomUUID();
 
   const memory = getOrCreateSession(sessionId, projectId);
@@ -80,7 +81,7 @@ export async function action({ request }: { request: Request }) {
         controller.enqueue(encoder.encode(sseEncode({ type: "session_init", sessionId })));
 
         // Select role
-        const { role, selectedBy } = await selectRole(sessionId, roleId, message);
+        const { role, selectedBy } = await selectRole(sessionId, roleId, message, forceRole);
 
         controller.enqueue(
           encoder.encode(

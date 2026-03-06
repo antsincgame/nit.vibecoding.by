@@ -69,6 +69,17 @@ function parsePipelineSSE(
  */
 let generationCounter = 0;
 
+/** Module-level abort controller — accessible from outside React for project switch */
+let activeAbortController: AbortController | null = null;
+
+/** Abort any active pipeline stream. Safe to call from anywhere. */
+export function abortActivePipeline() {
+  if (activeAbortController) {
+    activeAbortController.abort();
+    activeAbortController = null;
+  }
+}
+
 export function usePipelineStreaming() {
   const abortRef = useRef<AbortController | null>(null);
   const genIdRef = useRef(0);
@@ -88,6 +99,7 @@ export function usePipelineStreaming() {
 
       const controller = new AbortController();
       abortRef.current = controller;
+      activeAbortController = controller;
 
       const thisGenId = ++generationCounter;
       genIdRef.current = thisGenId;
@@ -252,6 +264,7 @@ export function usePipelineStreaming() {
       } finally {
         if (genIdRef.current === thisGenId) {
           abortRef.current = null;
+          activeAbortController = null;
         }
       }
     },
@@ -262,6 +275,7 @@ export function usePipelineStreaming() {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
+      activeAbortController = null;
       setStreaming({ isStreaming: false });
       useRoleStore.getState().resetPipeline();
     }

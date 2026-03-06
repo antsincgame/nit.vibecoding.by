@@ -17,6 +17,7 @@ import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { useUIStore } from "~/lib/stores/uiStore";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { useRoleStore } from "~/lib/stores/roleStore";
+import { abortActivePipeline } from "~/lib/hooks/usePipelineStreaming";
 import { cn } from "~/lib/utils/cn";
 import { sanitizeVersionCode } from "~/lib/utils/codeParser";
 
@@ -71,8 +72,11 @@ function Sidebar() {
     if (!currentProject) return;
 
     if (isSwitch && prevId) {
+      // Abort any active streaming before switching
+      abortActivePipeline();
+      useChatStore.getState().setStreaming({ isStreaming: false, currentContent: "", error: null });
       useChatStore.getState().saveProjectChat(prevId);
-      // Reset pipeline session — prevents session leak across projects
+      // Reset pipeline session
       useRoleStore.getState().resetPipeline();
       useRoleStore.getState().setPipelineSessionId(null);
     }

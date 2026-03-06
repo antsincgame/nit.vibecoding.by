@@ -30,8 +30,9 @@ export function PromptTester({ open, onClose, role }: PromptTesterProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectId: "__test__",
+          projectId: `__test_${Date.now()}__`,
           roleId: role.id,
+          forceRole: true,
           message: testInput,
           localContext: "",
           projectType: "react",
