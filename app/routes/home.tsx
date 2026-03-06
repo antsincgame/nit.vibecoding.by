@@ -16,6 +16,7 @@ import { useProjectStore } from "~/lib/stores/projectStore";
 import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { useUIStore } from "~/lib/stores/uiStore";
 import { useChatStore } from "~/lib/stores/chatStore";
+import { useRoleStore } from "~/lib/stores/roleStore";
 import { cn } from "~/lib/utils/cn";
 import { sanitizeVersionCode } from "~/lib/utils/codeParser";
 
@@ -71,6 +72,9 @@ function Sidebar() {
 
     if (isSwitch && prevId) {
       useChatStore.getState().saveProjectChat(prevId);
+      // Reset pipeline session — prevents session leak across projects
+      useRoleStore.getState().resetPipeline();
+      useRoleStore.getState().setPipelineSessionId(null);
     }
 
     const loadChat = async () => {

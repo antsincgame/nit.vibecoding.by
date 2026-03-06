@@ -10,6 +10,10 @@ interface ChatMessageRow {
   timestamp: number;
   model: string | null;
   agent_id: string | null;
+  agent_role_id: string | null;
+  agent_role_name: string | null;
+  selected_by: string | null;
+  duration_ms: number | null;
 }
 
 function mapRow(row: ChatMessageRow): ChatMessage {
@@ -20,6 +24,10 @@ function mapRow(row: ChatMessageRow): ChatMessage {
     timestamp: row.timestamp,
     model: row.model ?? undefined,
     agentId: row.agent_id ?? undefined,
+    agentRoleId: row.agent_role_id ?? undefined,
+    agentRoleName: row.agent_role_name ?? undefined,
+    selectedBy: row.selected_by ?? undefined,
+    durationMs: row.duration_ms ?? undefined,
   };
 }
 
@@ -43,8 +51,8 @@ export function saveProjectMessages(
     if (messages.length === 0) return;
 
     const insert = db.prepare(
-      `INSERT OR REPLACE INTO chat_messages (id, project_id, role, content, timestamp, model, agent_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO chat_messages (id, project_id, role, content, timestamp, model, agent_id, agent_role_id, agent_role_name, selected_by, duration_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
     for (const msg of messages) {
@@ -56,6 +64,10 @@ export function saveProjectMessages(
         msg.timestamp,
         msg.model ?? null,
         msg.agentId ?? null,
+        msg.agentRoleId ?? null,
+        msg.agentRoleName ?? null,
+        msg.selectedBy ?? null,
+        msg.durationMs ?? null,
       );
     }
   });

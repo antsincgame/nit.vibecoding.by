@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { cn } from "~/lib/utils/cn";
 import { extractChatText, extractGeneratedFileNames } from "~/lib/utils/codeParser";
 import { useT } from "~/lib/utils/i18n";
+import { AgentBadge } from "./AgentBadge";
 import type { ChatMessage } from "@shared/types/message";
 
 interface MessageListProps {
@@ -89,11 +90,18 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
         {isUser ? (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         ) : isStreaming && isThinking ? (
-          <StreamingStatus content={message.content} />
+          <>
+            <AgentBadge message={message} />
+            <StreamingStatus content={message.content} />
+          </>
         ) : isCodeOnly ? (
-          <FileSummary content={message.content} />
+          <>
+            <AgentBadge message={message} />
+            <FileSummary content={message.content} />
+          </>
         ) : (
           <div className="space-y-2">
+            <AgentBadge message={message} />
             {displayText && (
               <div className="text-xs leading-relaxed whitespace-pre-wrap break-words max-h-[40vh] overflow-y-auto overflow-x-hidden">
                 {displayText}
@@ -108,7 +116,7 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
           </div>
         )}
 
-        {!isUser && message.model && (
+        {!isUser && message.model && !message.agentRoleName && (
           <div className="mt-2 pt-2 border-t border-border-subtle flex items-center gap-2">
             <span className="text-[10px] text-text-muted truncate">{message.model}</span>
           </div>

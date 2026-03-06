@@ -54,6 +54,25 @@ function initSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_versions_number ON versions(project_id, version_number DESC);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_project ON chat_messages(project_id, timestamp ASC);
   `);
+
+  // Migration: add pipeline columns to chat_messages (safe to run multiple times)
+  const columns = database
+    .prepare("PRAGMA table_info(chat_messages)")
+    .all() as Array<{ name: string }>;
+  const colNames = new Set(columns.map((c) => c.name));
+
+  const migrations: [string, string][] = [
+    ["agent_role_id", "ALTER TABLE chat_messages ADD COLUMN agent_role_id TEXT"],
+    ["agent_role_name", "ALTER TABLE chat_messages ADD COLUMN agent_role_name TEXT"],
+    ["selected_by", "ALTER TABLE chat_messages ADD COLUMN selected_by TEXT"],
+    ["duration_ms", "ALTER TABLE chat_messages ADD COLUMN duration_ms INTEGER"],
+  ];
+
+  for (const [col, sql] of migrations) {
+    if (!colNames.has(col)) {
+      database.exec(sql);
+    }
+  }
 }
 
 export function getDb(): Database.Database {

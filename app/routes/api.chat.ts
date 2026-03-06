@@ -4,7 +4,6 @@ import { streamText } from "~/lib/server/llm/stream-text";
 const ChatRequestSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
-  perplexityApiKey: z.string().optional(),
   messages: z
     .array(
       z.object({
@@ -33,13 +32,8 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ error: detail, code: "INVALID_REQUEST" }, { status: 400 });
   }
 
-  const { messages, provider, model, perplexityApiKey, projectType, temperature, maxTokens, contextWindow } =
+  const { messages, provider, model, projectType, temperature, maxTokens, contextWindow } =
     parsed.data;
-
-  const apiKeys: Record<string, string> = {};
-  if (perplexityApiKey?.trim()) {
-    apiKeys.PERPLEXITY_API_KEY = perplexityApiKey.trim();
-  }
 
   try {
     const { stream: result, tokenBudget } = await streamText({
@@ -50,7 +44,6 @@ export async function action({ request }: { request: Request }) {
       temperature,
       maxTokens,
       contextWindow,
-      apiKeys,
       serverEnv: process.env as Record<string, string>,
       abortSignal: request.signal,
     });

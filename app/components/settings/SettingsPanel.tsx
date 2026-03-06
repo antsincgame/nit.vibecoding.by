@@ -4,7 +4,6 @@ import { NeonInput } from "~/components/ui/NeonInput";
 import { NeonButton } from "~/components/ui/NeonButton";
 import { useSettingsStore } from "~/lib/stores/settingsStore";
 import { useAgentStore } from "~/lib/stores/agentStore";
-import { PERPLEXITY_AGENT } from "~/features/agents/constants";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -15,15 +14,10 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const settings = useSettingsStore();
   const { agents, selection, setSelection } = useAgentStore();
 
-  const mergedAgents = useMemo(() => {
-    if (!settings.perplexityApiKey.trim()) return agents;
-    return [...agents, PERPLEXITY_AGENT];
-  }, [agents, settings.perplexityApiKey]);
-
-  const selectedAgent = mergedAgents.find((a) => a.id === selection.agentId);
+  const selectedAgent = agents.find((a) => a.id === selection.agentId);
 
   const handleAgentChange = (agentId: string) => {
-    const agent = mergedAgents.find((a) => a.id === agentId);
+    const agent = agents.find((a) => a.id === agentId);
     const modelId = agent?.models[0]?.id ?? "";
     setSelection({ agentId, modelId });
     settings.updateSettings({ defaultAgentId: agentId, defaultModelId: modelId });
@@ -52,8 +46,8 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             onChange={(e) => handleAgentChange(e.target.value)}
             className="w-full bg-deep-space border border-border-subtle rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-gold-pure/40"
           >
-            {mergedAgents.length === 0 && <option value="">No agents</option>}
-            {mergedAgents.map((agent) => (
+            {agents.length === 0 && <option value="">No agents</option>}
+            {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
                 {agent.status === "online" ? "\u2713" : "\u2717"} {agent.name}
               </option>
@@ -97,15 +91,6 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             className="w-full"
           />
         </div>
-
-        {/* Perplexity API Key */}
-        <NeonInput
-          label="Perplexity API Key"
-          type="password"
-          value={settings.perplexityApiKey}
-          onChange={(e) => settings.updateSettings({ perplexityApiKey: e.target.value })}
-          placeholder="pplx-xxxxxxxxxxxx"
-        />
 
         {/* Project Type */}
         <div>

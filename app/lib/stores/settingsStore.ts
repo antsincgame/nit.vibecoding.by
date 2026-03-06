@@ -9,7 +9,6 @@ type AppSettings = {
   autoSave: boolean;
   defaultAgentId: string;
   defaultModelId: string;
-  perplexityApiKey: string;
 };
 
 type SettingsActions = {
@@ -25,7 +24,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoSave: true,
   defaultAgentId: "",
   defaultModelId: "",
-  perplexityApiKey: "",
 };
 
 export const useSettingsStore = create<AppSettings & SettingsActions>()(

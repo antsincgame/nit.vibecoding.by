@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type { AIAgent, AgentSelection } from "@shared/types/agent";
 import { useSettingsStore } from "./settingsStore";
-import { PERPLEXITY_AGENT } from "~/features/agents/constants";
 
 type AgentState = {
   agents: AIAgent[];
@@ -54,15 +53,6 @@ export const useAgentStore = create<AgentState & AgentActions>((set, get) => ({
       return;
     }
 
-    if (settings.defaultAgentId === "perplexity" && settings.perplexityApiKey.trim()) {
-      const modelId =
-        PERPLEXITY_AGENT.models.some((m) => m.id === settings.defaultModelId)
-          ? settings.defaultModelId
-          : PERPLEXITY_AGENT.models[0]?.id ?? "";
-      applySelection("perplexity", modelId);
-      return;
-    }
-
     if (settings.defaultAgentId && agents.some((a) => a.id === settings.defaultAgentId)) {
       const agent = agents.find((a) => a.id === settings.defaultAgentId)!;
       const modelId =
@@ -90,10 +80,6 @@ export const useAgentStore = create<AgentState & AgentActions>((set, get) => ({
 
   getSelectedAgent: () => {
     const { agents, selection } = get();
-    if (selection.agentId === "perplexity") {
-      const hasKey = useSettingsStore.getState().perplexityApiKey.trim().length > 0;
-      return hasKey ? PERPLEXITY_AGENT : undefined;
-    }
     return agents.find((a) => a.id === selection.agentId);
   },
 }));

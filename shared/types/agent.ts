@@ -1,4 +1,4 @@
-export type AgentType = "ollama" | "lm_studio" | "openai_compatible" | "custom" | "perplexity";
+export type AgentType = "ollama" | "lm_studio" | "openai_compatible" | "custom";
 export type AgentStatus = "online" | "offline" | "checking";
 
 export type AIModel = {

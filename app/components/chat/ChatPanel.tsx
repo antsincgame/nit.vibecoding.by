@@ -3,31 +3,45 @@ import { useChatStore } from "~/lib/stores/chatStore";
 import { useAgentStore } from "~/lib/stores/agentStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
 import { useSettingsStore } from "~/lib/stores/settingsStore";
-import { useStreaming } from "~/lib/hooks/useStreaming";
+import { useRoleStore } from "~/lib/stores/roleStore";
+import { usePipelineStreaming } from "~/lib/hooks/usePipelineStreaming";
 import { useProjects } from "~/features/projects/hooks/useProjects";
 import { useVersionHistory } from "~/features/projects/hooks/useVersionHistory";
 import { parseGeneratedCode, sanitizeVersionCode } from "~/lib/utils/codeParser";
 import { MessageList } from "./MessageList";
 import { PromptInput } from "./PromptInput";
+import { RoleDropdown } from "./RoleDropdown";
+import { LocalContextInput } from "./LocalContextInput";
+import { AgentStatusIndicator } from "./AgentStatusIndicator";
+import { ChainProgress } from "./ChainProgress";
 import { GlowText } from "~/components/ui/GlowText";
 import { useT } from "~/lib/utils/i18n";
 
 export function ChatPanel() {
   const { messages, streaming, isChatLoading } = useChatStore();
-  const { selection, getSelectedAgent } = useAgentStore();
   const { currentProject } = useProjectStore();
-  const { generate, stop } = useStreaming();
+  const { roles, selection, clearLocalContext, pipelineStatus } = useRoleStore();
+  const { generate, stop } = usePipelineStreaming();
   const { create: createProject } = useProjects();
   const { saveVersion } = useVersionHistory();
 
   const wasStreamingRef = useRef(false);
   const lastPromptRef = useRef("");
-  const lastOptionsRef = useRef({ model: "", agentId: "", temperature: 0.3 });
 
   const t = useT();
-  const selectedAgent = useAgentStore((s) => s.getSelectedAgent());
-  const hasAgent = Boolean(selectedAgent);
 
+  // Check availability: need at least one online provider AND at least one role
+  const agents = useAgentStore((s) => s.agents);
+  const hasOnlineProvider = agents.some((a) => a.status === "online");
+  const hasRoles = roles.length > 0;
+  const canGenerate = hasOnlineProvider && hasRoles;
+
+  // Load roles on mount
+  useEffect(() => {
+    useRoleStore.getState().loadRoles();
+  }, []);
+
+  // Auto-save version when streaming completes
   useEffect(() => {
     if (wasStreamingRef.current && !streaming.isStreaming) {
       const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
@@ -40,12 +54,14 @@ export function ChatPanel() {
       const project = useProjectStore.getState().currentProject;
       if (project) {
         if (useSettingsStore.getState().autoSave) {
+          // Read model/agent info from the assistant message metadata
+          // (set by usePipelineStreaming after streaming completes)
           saveVersion({
             code: sanitized,
             prompt: lastPromptRef.current,
-            model: lastOptionsRef.current.model,
-            agentId: lastOptionsRef.current.agentId,
-            temperature: lastOptionsRef.current.temperature,
+            model: lastAssistant.model ?? "",
+            agentId: lastAssistant.agentId ?? "",
+            temperature: 0.3,
           });
         }
         useChatStore.getState().saveProjectChat(project.id);
@@ -55,42 +71,34 @@ export function ChatPanel() {
   }, [streaming.isStreaming]);
 
   const handleSubmit = async (prompt: string) => {
-    if (!selection.agentId || !selection.modelId) return;
-
-    const agent = getSelectedAgent();
-    if (!agent) return;
-
-    const provider = agent.id;
+    const { defaultProjectType } = useSettingsStore.getState();
+    const roleStore = useRoleStore.getState();
 
     lastPromptRef.current = prompt;
-    lastOptionsRef.current = {
-      model: selection.modelId,
-      agentId: agent.id,
-      temperature: selection.temperature,
-    };
-
-    const { defaultProjectType } = useSettingsStore.getState();
 
     try {
-      if (!currentProject) {
+      let projectId = currentProject?.id;
+
+      if (!projectId) {
         const projectName = prompt.length > 50 ? prompt.slice(0, 50) + "..." : prompt;
         const created = await createProject({ name: projectName, description: "", type: defaultProjectType });
         if (!created) {
           useChatStore.getState().setStreaming({ error: "Не удалось создать проект" });
           return;
         }
+        projectId = created.id;
       }
 
-      const opts: Parameters<typeof generate>[1] = {
-        provider,
-        model: selection.modelId,
-        temperature: selection.temperature,
+      generate(prompt, {
+        projectId: projectId!,
+        roleId: roleStore.selection.roleId,
+        localContext: roleStore.selection.localContext,
         projectType: currentProject?.type ?? defaultProjectType,
-      };
-      if (provider === "perplexity") {
-        opts.perplexityApiKey = useSettingsStore.getState().perplexityApiKey;
-      }
-      generate(prompt, opts);
+        sessionId: roleStore.pipelineSessionId ?? undefined,
+      });
+
+      // Clear local context after sending
+      clearLocalContext();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
       useChatStore.getState().setStreaming({ error: msg });
@@ -112,10 +120,12 @@ export function ChatPanel() {
             <p className="text-text-secondary text-sm mb-6 leading-relaxed whitespace-pre-line">
               {t("chat.welcome.subtitle")}
             </p>
-            {!hasAgent && (
+            {!canGenerate && (
               <div className="glass rounded-lg p-3 mb-4 border border-red-400/20">
                 <p className="text-red-400 text-xs">
-                  {t("chat.no_agents")}
+                  {!hasOnlineProvider
+                    ? t("chat.no_agents")
+                    : "Роли агентов не загружены. Проверьте настройки."}
                 </p>
               </div>
             )}
@@ -125,19 +135,34 @@ export function ChatPanel() {
         <MessageList messages={messages} isStreaming={streaming.isStreaming} />
       )}
 
-      {streaming.error && (
+      {/* Pipeline status indicators */}
+      <ChainProgress />
+      <AgentStatusIndicator />
+
+      {/* Show streaming error only when pipeline indicator isn't showing it */}
+      {streaming.error && pipelineStatus !== "error" && (
         <div className="flex-shrink-0 mx-4 mb-2 glass rounded px-3 py-2 border border-red-400/20">
           <p className="text-red-400 text-xs">{streaming.error}</p>
         </div>
       )}
 
-      <div className="flex-shrink-0 p-4 border-t border-border-subtle">
-        <PromptInput
-          onSubmit={handleSubmit}
-          onStop={stop}
-          isStreaming={streaming.isStreaming}
-          disabled={!hasAgent}
-        />
+      <div className="flex-shrink-0 border-t border-border-subtle">
+        {/* Role controls */}
+        <div className="px-4 pt-3 pb-1 flex items-end gap-3">
+          <RoleDropdown />
+          <div className="flex-1" />
+          <LocalContextInput />
+        </div>
+
+        {/* Prompt input */}
+        <div className="px-4 pb-4 pt-1">
+          <PromptInput
+            onSubmit={handleSubmit}
+            onStop={stop}
+            isStreaming={streaming.isStreaming}
+            disabled={!canGenerate}
+          />
+        </div>
       </div>
     </div>
   );

@@ -27,7 +27,14 @@ export function Header() {
 
       <div className="flex-1 min-w-0" />
 
-      <div className="flex items-center flex-shrink-0">
+      <div className="flex items-center flex-shrink-0 gap-1">
+        <a
+          href="/settings/agents"
+          className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface transition-colors text-text-secondary hover:text-gold-pure"
+          title="Agent Roles"
+        >
+          <span className="text-sm">🤖</span>
+        </a>
         <button
           onClick={toggleSettings}
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface transition-colors text-text-secondary hover:text-gold-pure"
