@@ -19,6 +19,7 @@ export type Project = {
   type: ProjectType;
   agentId: string;
   modelUsed: string;
+  databaseId: string;
   createdAt: string;
   updatedAt: string;
 };

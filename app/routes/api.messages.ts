@@ -3,6 +3,12 @@ import {
   saveProjectMessages,
   deleteProjectMessages,
 } from "~/features/chat/service/chatService";
+import * as projectService from "~/features/projects/service/projectService";
+
+async function resolveDatabaseId(projectId: string): Promise<string> {
+  const project = await projectService.getProject(projectId);
+  return project.databaseId;
+}
 
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
@@ -15,7 +21,8 @@ export async function loader({ request }: { request: Request }) {
     );
   }
 
-  const messages = getProjectMessages(projectId);
+  const databaseId = await resolveDatabaseId(projectId);
+  const messages = await getProjectMessages(databaseId);
   return Response.json({ data: messages });
 }
 
@@ -34,7 +41,8 @@ export async function action({ request }: { request: Request }) {
     }
 
     try {
-      saveProjectMessages(projectId, messages);
+      const databaseId = await resolveDatabaseId(projectId);
+      await saveProjectMessages(databaseId, messages);
       return Response.json({ data: { ok: true } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save messages";
@@ -51,7 +59,8 @@ export async function action({ request }: { request: Request }) {
       );
     }
 
-    deleteProjectMessages(body.projectId);
+    const databaseId = await resolveDatabaseId(body.projectId);
+    await deleteProjectMessages(databaseId);
     return Response.json({ data: { ok: true } });
   }
 

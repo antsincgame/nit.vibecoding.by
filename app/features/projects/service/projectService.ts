@@ -1,117 +1,157 @@
-import { getDb, generateId } from "~/lib/db/sqlite";
+import {
+  getDb,
+  getMasterDbId,
+  COLLECTIONS,
+  ensureMasterSchema,
+  createProjectDatabase,
+  deleteProjectDatabase,
+  ID,
+  Query,
+} from "~/lib/db/appwrite";
 import type { Project, CreateProjectInput } from "@shared/types/project";
 
-interface ProjectRow {
-  id: string;
+interface ProjectDoc {
+  $id: string;
   name: string;
   description: string;
   type: string;
   agent_id: string;
   model_used: string;
+  database_id: string;
   created_at: string;
   updated_at: string;
 }
 
-function mapRow(row: ProjectRow): Project {
+function mapDoc(doc: ProjectDoc): Project {
   return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    type: row.type as Project["type"],
-    agentId: row.agent_id,
-    modelUsed: row.model_used,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id: doc.$id,
+    name: doc.name,
+    description: doc.description,
+    type: doc.type as Project["type"],
+    agentId: doc.agent_id,
+    modelUsed: doc.model_used,
+    databaseId: doc.database_id,
+    createdAt: doc.created_at,
+    updatedAt: doc.updated_at,
   };
+}
+
+let schemaReady = false;
+
+async function ready(): Promise<void> {
+  if (schemaReady) return;
+  await ensureMasterSchema();
+  schemaReady = true;
 }
 
 export async function listProjects(): Promise<Project[]> {
+  await ready();
   const db = getDb();
-  const rows = db
-    .prepare("SELECT * FROM projects ORDER BY created_at DESC LIMIT 100")
-    .all() as ProjectRow[];
-  return rows.map(mapRow);
+  
+  // Wait for index/attributes to be ready in Appwrite
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  try {
+    const result = await db.listDocuments(
+      getMasterDbId(),
+      COLLECTIONS.PROJECTS,
+      [Query.orderDesc("$createdAt"), Query.limit(100)],
+    );
+    return (result.documents as unknown as ProjectDoc[]).map(mapDoc);
+  } catch (e) {
+    // Fallback if index isn't ready
+    const result = await db.listDocuments(
+      getMasterDbId(),
+      COLLECTIONS.PROJECTS,
+      [Query.limit(100)],
+    );
+    return (result.documents as unknown as ProjectDoc[]).map(mapDoc);
+  }
 }
 
 export async function getProject(id: string): Promise<Project> {
+  await ready();
   const db = getDb();
-  const row = db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as
-    | ProjectRow
-    | undefined;
-
-  if (!row) {
-    throw new Error(`Project not found: ${id}`);
-  }
-
-  return mapRow(row);
+  const doc = await db.getDocument({
+    databaseId: getMasterDbId(),
+    collectionId: COLLECTIONS.PROJECTS,
+    documentId: id,
+  });
+  return mapDoc(doc as unknown as ProjectDoc);
 }
 
-export async function createProject(
-  input: CreateProjectInput,
-): Promise<Project> {
+export async function createProject(input: CreateProjectInput): Promise<Project> {
+  await ready();
   const db = getDb();
-  const id = generateId();
   const now = new Date().toISOString();
   const projectType = input.type ?? "react";
 
-  db.prepare(
-    `INSERT INTO projects (id, name, description, type, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(id, input.name, input.description, projectType, now, now);
+  const projectDbId = await createProjectDatabase(input.name);
 
-  return {
-    id,
-    name: input.name,
-    description: input.description,
-    type: projectType,
-    agentId: "",
-    modelUsed: "",
-    createdAt: now,
-    updatedAt: now,
-  };
+  const doc = await db.createDocument({
+    databaseId: getMasterDbId(),
+    collectionId: COLLECTIONS.PROJECTS,
+    documentId: ID.unique(),
+    data: {
+      name: input.name,
+      description: input.description,
+      type: projectType,
+      agent_id: "",
+      model_used: "",
+      database_id: projectDbId,
+      created_at: now,
+      updated_at: now,
+    },
+  });
+
+  return mapDoc(doc as unknown as ProjectDoc);
 }
 
 export async function updateProject(
   id: string,
   data: Partial<CreateProjectInput & { agentId: string; modelUsed: string }>,
 ): Promise<Project> {
+  await ready();
   const db = getDb();
   const now = new Date().toISOString();
 
-  const sets: string[] = ["updated_at = ?"];
-  const params: unknown[] = [now];
+  const updates: Record<string, unknown> = { updated_at: now };
 
-  if (data.name !== undefined) {
-    sets.push("name = ?");
-    params.push(data.name);
-  }
-  if (data.description !== undefined) {
-    sets.push("description = ?");
-    params.push(data.description);
-  }
-  if (data.type !== undefined) {
-    sets.push("type = ?");
-    params.push(data.type);
-  }
-  if (data.agentId !== undefined) {
-    sets.push("agent_id = ?");
-    params.push(data.agentId);
-  }
-  if (data.modelUsed !== undefined) {
-    sets.push("model_used = ?");
-    params.push(data.modelUsed);
-  }
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.type !== undefined) updates.type = data.type;
+  if (data.agentId !== undefined) updates.agent_id = data.agentId;
+  if (data.modelUsed !== undefined) updates.model_used = data.modelUsed;
 
-  params.push(id);
+  const doc = await db.updateDocument({
+    databaseId: getMasterDbId(),
+    collectionId: COLLECTIONS.PROJECTS,
+    documentId: id,
+    data: updates,
+  });
 
-  db.prepare(`UPDATE projects SET ${sets.join(", ")} WHERE id = ?`).run(
-    ...params,
-  );
-
-  return getProject(id);
+  return mapDoc(doc as unknown as ProjectDoc);
 }
 
 export async function deleteProject(id: string): Promise<void> {
+  await ready();
   const db = getDb();
-  db.prepare("DELETE FROM projects WHERE id = ?").run(id);
+
+  const doc = await db.getDocument({
+    databaseId: getMasterDbId(),
+    collectionId: COLLECTIONS.PROJECTS,
+    documentId: id,
+  });
+
+  const databaseId = (doc as unknown as ProjectDoc).database_id;
+
+  await db.deleteDocument({
+    databaseId: getMasterDbId(),
+    collectionId: COLLECTIONS.PROJECTS,
+    documentId: id,
+  });
+
+  if (databaseId) {
+    await deleteProjectDatabase(databaseId);
+  }
 }

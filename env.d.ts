@@ -9,7 +9,7 @@ interface ImportMetaEnv {
   readonly APPWRITE_ENDPOINT: string;
   readonly APPWRITE_PROJECT_ID: string;
   readonly APPWRITE_API_KEY: string;
-  readonly APPWRITE_DATABASE_ID: string;
+  readonly APPWRITE_MASTER_DB_ID: string;
 }
 
 interface ImportMeta {

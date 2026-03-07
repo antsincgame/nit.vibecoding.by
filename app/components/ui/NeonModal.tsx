@@ -42,6 +42,7 @@ export function NeonModal({ open, onClose, title, children, className }: NeonMod
         "glass rounded-lg p-0 backdrop:bg-black/70 backdrop:backdrop-blur-sm",
         "max-w-lg w-full border border-gold-pure/20",
         "animate-fade-in-up",
+        "max-h-[90vh] overflow-y-auto",
         className,
       )}
     >

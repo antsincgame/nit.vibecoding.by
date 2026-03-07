@@ -7,6 +7,11 @@ export default defineConfig({
     tailwindcss(),
     reactRouter(),
   ],
+  server: {
+    warmup: {
+      clientFiles: ["./app/**/*", "!**/*.server.ts"],
+    },
+  },
   resolve: {
     alias: {
       "~": "/app",
@@ -18,6 +23,6 @@ export default defineConfig({
     include: ["react", "react-dom", "react-router"],
   },
   ssr: {
-    external: ["better-sqlite3"],
+    external: ["node-appwrite"],
   },
 });

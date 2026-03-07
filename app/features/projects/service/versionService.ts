@@ -1,10 +1,9 @@
-import { getDb, generateId } from "~/lib/db/sqlite";
+import { getDb, COLLECTIONS, ID, Query } from "~/lib/db/appwrite";
 import type { ProjectVersion } from "@shared/types/project";
 import { logger } from "~/lib/utils/logger";
 
-interface VersionRow {
-  id: string;
-  project_id: string;
+interface VersionDoc {
+  $id: string;
   code: string;
   prompt: string;
   model: string;
@@ -14,46 +13,59 @@ interface VersionRow {
   created_at: string;
 }
 
-function mapRow(row: VersionRow): ProjectVersion {
+function mapDoc(doc: VersionDoc, databaseId: string): ProjectVersion {
   let code: Record<string, string> = {};
   try {
-    code = JSON.parse(row.code) as Record<string, string>;
+    code = JSON.parse(doc.code) as Record<string, string>;
   } catch (err) {
     logger.warn(
       "versionService",
       "Failed to parse version code JSON, using raw fallback",
       err,
     );
-    code = { "App.tsx": row.code };
+    code = { "App.tsx": doc.code };
   }
 
   return {
-    id: row.id,
-    projectId: row.project_id,
+    id: doc.$id,
+    projectId: databaseId,
     code,
-    prompt: row.prompt,
-    model: row.model,
-    agentId: row.agent_id,
-    temperature: row.temperature,
-    versionNumber: row.version_number,
-    createdAt: row.created_at,
+    prompt: doc.prompt,
+    model: doc.model,
+    agentId: doc.agent_id,
+    temperature: doc.temperature,
+    versionNumber: doc.version_number,
+    createdAt: doc.created_at,
   };
 }
 
 export async function listVersions(
-  projectId: string,
+  databaseId: string,
 ): Promise<ProjectVersion[]> {
   const db = getDb();
-  const rows = db
-    .prepare(
-      "SELECT * FROM versions WHERE project_id = ? ORDER BY version_number DESC LIMIT 50",
-    )
-    .all(projectId) as VersionRow[];
-  return rows.map(mapRow);
+  try {
+    const result = await db.listDocuments(
+      databaseId,
+      COLLECTIONS.VERSIONS,
+      [Query.orderDesc("version_number"), Query.limit(50)],
+    );
+    return (result.documents as unknown as VersionDoc[]).map((d) =>
+      mapDoc(d, databaseId),
+    );
+  } catch (e) {
+    const result = await db.listDocuments(
+      databaseId,
+      COLLECTIONS.VERSIONS,
+      [Query.limit(50)],
+    );
+    return (result.documents as unknown as VersionDoc[]).map((d) =>
+      mapDoc(d, databaseId),
+    );
+  }
 }
 
 export async function createVersion(data: {
-  projectId: string;
+  databaseId: string;
   code: Record<string, string>;
   prompt: string;
   model: string;
@@ -61,46 +73,43 @@ export async function createVersion(data: {
   temperature: number;
 }): Promise<ProjectVersion> {
   const db = getDb();
-  const id = generateId();
   const now = new Date().toISOString();
 
-  const lastRow = db
-    .prepare(
-      "SELECT version_number FROM versions WHERE project_id = ? ORDER BY version_number DESC LIMIT 1",
-    )
-    .get(data.projectId) as { version_number: number } | undefined;
-
-  const nextNumber = lastRow ? lastRow.version_number + 1 : 1;
-
-  db.prepare(
-    `INSERT INTO versions (id, project_id, code, prompt, model, agent_id, temperature, version_number, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    data.projectId,
-    JSON.stringify(data.code),
-    data.prompt,
-    data.model,
-    data.agentId,
-    data.temperature,
-    nextNumber,
-    now,
+  const existing = await db.listDocuments(
+    data.databaseId,
+    COLLECTIONS.VERSIONS,
+    [Query.orderDesc("version_number"), Query.limit(1)],
   );
 
-  return {
-    id,
-    projectId: data.projectId,
-    code: data.code,
-    prompt: data.prompt,
-    model: data.model,
-    agentId: data.agentId,
-    temperature: data.temperature,
-    versionNumber: nextNumber,
-    createdAt: now,
-  };
+  const lastDoc = existing.documents[0] as unknown as VersionDoc | undefined;
+  const nextNumber = lastDoc ? lastDoc.version_number + 1 : 1;
+
+  const doc = await db.createDocument({
+    databaseId: data.databaseId,
+    collectionId: COLLECTIONS.VERSIONS,
+    documentId: ID.unique(),
+    data: {
+      code: JSON.stringify(data.code),
+      prompt: data.prompt,
+      model: data.model,
+      agent_id: data.agentId,
+      temperature: data.temperature,
+      version_number: nextNumber,
+      created_at: now,
+    },
+  });
+
+  return mapDoc(doc as unknown as VersionDoc, data.databaseId);
 }
 
-export async function deleteVersion(id: string): Promise<void> {
+export async function deleteVersion(
+  databaseId: string,
+  versionId: string,
+): Promise<void> {
   const db = getDb();
-  db.prepare("DELETE FROM versions WHERE id = ?").run(id);
+  await db.deleteDocument({
+    databaseId,
+    collectionId: COLLECTIONS.VERSIONS,
+    documentId: versionId,
+  });
 }

@@ -14,9 +14,6 @@ type Pages = {
   "/": {
     params: {};
   };
-  "/api/chat": {
-    params: {};
-  };
   "/api/agents": {
     params: {};
   };
@@ -29,20 +26,30 @@ type Pages = {
   "/api/messages": {
     params: {};
   };
+  "/api/roles": {
+    params: {};
+  };
+  "/api/roles/:id": {
+    params: {
+      "id": string;
+    };
+  };
+  "/api/pipeline/execute": {
+    params: {};
+  };
+  "/settings/agents": {
+    params: {};
+  };
 };
 
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/api/chat" | "/api/agents" | "/api/projects" | "/api/versions" | "/api/messages";
+    page: "/" | "/api/agents" | "/api/projects" | "/api/versions" | "/api/messages" | "/api/roles" | "/api/roles/:id" | "/api/pipeline/execute" | "/settings/agents";
   };
   "routes/home.tsx": {
     id: "routes/home";
     page: "/";
-  };
-  "routes/api.chat.ts": {
-    id: "routes/api.chat";
-    page: "/api/chat";
   };
   "routes/api.agents.ts": {
     id: "routes/api.agents";
@@ -60,14 +67,33 @@ type RouteFiles = {
     id: "routes/api.messages";
     page: "/api/messages";
   };
+  "routes/api.roles.ts": {
+    id: "routes/api.roles";
+    page: "/api/roles";
+  };
+  "routes/api.roles.$id.ts": {
+    id: "routes/api.roles.$id";
+    page: "/api/roles/:id";
+  };
+  "routes/api.pipeline.execute.ts": {
+    id: "routes/api.pipeline.execute";
+    page: "/api/pipeline/execute";
+  };
+  "routes/settings.agents.tsx": {
+    id: "routes/settings.agents";
+    page: "/settings/agents";
+  };
 };
 
 type RouteModules = {
   "root": typeof import("./app/root.tsx");
   "routes/home": typeof import("./app/routes/home.tsx");
-  "routes/api.chat": typeof import("./app/routes/api.chat.ts");
   "routes/api.agents": typeof import("./app/routes/api.agents.ts");
   "routes/api.projects": typeof import("./app/routes/api.projects.ts");
   "routes/api.versions": typeof import("./app/routes/api.versions.ts");
   "routes/api.messages": typeof import("./app/routes/api.messages.ts");
+  "routes/api.roles": typeof import("./app/routes/api.roles.ts");
+  "routes/api.roles.$id": typeof import("./app/routes/api.roles.$id.ts");
+  "routes/api.pipeline.execute": typeof import("./app/routes/api.pipeline.execute.ts");
+  "routes/settings.agents": typeof import("./app/routes/settings.agents.tsx");
 };

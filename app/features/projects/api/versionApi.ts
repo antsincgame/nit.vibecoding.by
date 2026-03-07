@@ -31,10 +31,10 @@ export function createVersion(data: {
   });
 }
 
-export function deleteVersion(id: string): Promise<void> {
+export function deleteVersion(id: string, projectId: string): Promise<void> {
   return fetchJson("/api/versions", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
+    body: JSON.stringify({ id, projectId }),
   });
 }

@@ -149,8 +149,9 @@ export default function SettingsAgentsPage() {
   };
 
   return (
-    <SacredBackground pattern="flower" className="min-h-screen">
-      <div className="max-w-3xl mx-auto px-6 py-8">
+    <SacredBackground pattern="flower" className="h-screen">
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-3xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -246,6 +247,7 @@ export default function SettingsAgentsPage() {
             )}
           </div>
         )}
+      </div>
       </div>
 
       {/* Modals */}
