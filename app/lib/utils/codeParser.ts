@@ -232,6 +232,66 @@ export function sanitizeVersionCode(code: Record<string, string>): Record<string
   return result;
 }
 
+const STRUCTURE_JSON_KEYS = ["project_name", "pages", "slug", "sections", "design", "navigation", "tech_notes"];
+
+function extractJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let quote = "";
+  for (let i = start; i < text.length; i++) {
+    const c = text[i]!;
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === quote) inString = false;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      inString = true;
+      quote = c;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function tryParseJsonStructure(text: string): Record<string, string> | null {
+  const trimmed = text.trim();
+  if (trimmed.length < 50) return null;
+
+  const jsonStr = trimmed.startsWith("{")
+    ? trimmed
+    : extractJsonObject(trimmed);
+  if (!jsonStr) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const keys = Object.keys(parsed as Record<string, unknown>);
+  const hasStructureKeys = STRUCTURE_JSON_KEYS.some((k) => keys.includes(k));
+  if (!hasStructureKeys) return null;
+
+  const formatted = JSON.stringify(parsed, null, 2);
+  return { "structure.json": formatted };
+}
+
 export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   if (!rawOutput.trim()) return {};
 
@@ -258,6 +318,9 @@ export function parseGeneratedCode(rawOutput: string): Record<string, string> {
   if (Object.keys(markdownFiles).length > 0) return markdownFiles;
 
   if (hasArtifactWrapper && inner.length < 50) return {};
+
+  const jsonArtifact = tryParseJsonStructure(inner) ?? tryParseJsonStructure(unwrapped);
+  if (jsonArtifact) return jsonArtifact;
 
   if (!looksLikeCode(inner)) return {};
 

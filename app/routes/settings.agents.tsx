@@ -196,7 +196,6 @@ export default function SettingsAgentsPage() {
   const handleEdit = (role: AgentRole) => {
     setEditingRole(role);
     setFormPromptOverride(null);
-    setFormOpen(true);
   };
 
   const handleDelete = async (role: AgentRole) => {
@@ -241,11 +240,11 @@ export default function SettingsAgentsPage() {
   };
 
   const handleRestorePrompt = (prompt: string) => {
-    // Re-open edit form with restored prompt
     if (historyRole) {
-      setEditingRole(historyRole);
+      const roleToEdit = historyRole;
+      setHistoryRole(null);
+      setEditingRole(roleToEdit);
       setFormPromptOverride(prompt);
-      setFormOpen(true);
     }
   };
 
@@ -480,20 +479,19 @@ export default function SettingsAgentsPage() {
           </div>
         )}
 
-        {/* Inline role form */}
-        {formOpen && (
+        {/* Role form (modal only for create) */}
+        {formOpen && !editingRole && (
           <AgentRoleForm
             open={formOpen}
             onClose={() => {
               setFormOpen(false);
-              setEditingRole(null);
               setFormPromptOverride(null);
             }}
             onSave={handleSave}
-            role={editingRole}
+            role={null}
             providers={providers}
             promptOverride={formPromptOverride}
-            inline
+            inline={false}
           />
         )}
 
@@ -507,27 +505,78 @@ export default function SettingsAgentsPage() {
         {/* Role list */}
         {!loading && (
           <div className="space-y-4">
-            {roles.map((role, index) => (
-              <AgentRoleCard
-                key={role.id}
-                role={role}
-                providerOnline={isProviderOnline(role.providerId)}
-                onEdit={() => handleEdit(role)}
-                onDelete={() => handleDelete(role)}
-                onTest={() => setTestingRole(role)}
-                onHistory={() => setHistoryRole(role)}
-                isDragging={dragIndex === index}
-                isDragOver={dragOverIndex === index}
-                onDragStart={() => setDragIndex(index)}
-                onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
-                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
-                onDrop={() => {
-                  if (dragIndex !== null) handleDrop(dragIndex, index);
-                  setDragIndex(null);
-                  setDragOverIndex(null);
-                }}
-              />
-            ))}
+            {roles.map((role, index) =>
+              editingRole?.id === role.id ? (
+                <div
+                  key={role.id}
+                  className="glass rounded-lg border border-gold-pure/30 overflow-hidden transition-all"
+                >
+                  <AgentRoleCard
+                    role={role}
+                    providerOnline={isProviderOnline(role.providerId)}
+                    onEdit={() => handleEdit(role)}
+                    onDelete={() => handleDelete(role)}
+                    onTest={() => setTestingRole(role)}
+                    onHistory={() => setHistoryRole(role)}
+                    isDragging={dragIndex === index}
+                    isDragOver={dragOverIndex === index}
+                    onDragStart={() => setDragIndex(index)}
+                    onDragEnd={() => {
+                      setDragIndex(null);
+                      setDragOverIndex(null);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOverIndex(index);
+                    }}
+                    onDrop={() => {
+                      if (dragIndex !== null) handleDrop(dragIndex, index);
+                      setDragIndex(null);
+                      setDragOverIndex(null);
+                    }}
+                    isExpanded
+                  />
+                  <AgentRoleForm
+                    open
+                    onClose={() => {
+                      setEditingRole(null);
+                      setFormPromptOverride(null);
+                    }}
+                    onSave={handleSave}
+                    role={editingRole}
+                    providers={providers}
+                    promptOverride={formPromptOverride}
+                    inline="embedded"
+                  />
+                </div>
+              ) : (
+                <AgentRoleCard
+                  key={role.id}
+                  role={role}
+                  providerOnline={isProviderOnline(role.providerId)}
+                  onEdit={() => handleEdit(role)}
+                  onDelete={() => handleDelete(role)}
+                  onTest={() => setTestingRole(role)}
+                  onHistory={() => setHistoryRole(role)}
+                  isDragging={dragIndex === index}
+                  isDragOver={dragOverIndex === index}
+                  onDragStart={() => setDragIndex(index)}
+                  onDragEnd={() => {
+                    setDragIndex(null);
+                    setDragOverIndex(null);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverIndex(index);
+                  }}
+                  onDrop={() => {
+                    if (dragIndex !== null) handleDrop(dragIndex, index);
+                    setDragIndex(null);
+                    setDragOverIndex(null);
+                  }}
+                />
+              )
+            )}
             {roles.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-text-muted text-sm mb-4">Роли не найдены.</p>

@@ -32,6 +32,9 @@ type Pages = {
   "/api/roles/seed": {
     params: {};
   };
+  "/api/appwrite/health": {
+    params: {};
+  };
   "/api/roles/:id": {
     params: {
       "id": string;
@@ -48,7 +51,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/api/agents" | "/api/projects" | "/api/versions" | "/api/messages" | "/api/roles" | "/api/roles/seed" | "/api/roles/:id" | "/api/pipeline/execute" | "/settings/agents";
+    page: "/" | "/api/agents" | "/api/projects" | "/api/versions" | "/api/messages" | "/api/roles" | "/api/roles/seed" | "/api/appwrite/health" | "/api/roles/:id" | "/api/pipeline/execute" | "/settings/agents";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -78,6 +81,10 @@ type RouteFiles = {
     id: "routes/api.roles.seed";
     page: "/api/roles/seed";
   };
+  "routes/api.appwrite.health.ts": {
+    id: "routes/api.appwrite.health";
+    page: "/api/appwrite/health";
+  };
   "routes/api.roles.$id.ts": {
     id: "routes/api.roles.$id";
     page: "/api/roles/:id";
@@ -101,6 +108,7 @@ type RouteModules = {
   "routes/api.messages": typeof import("./app/routes/api.messages.ts");
   "routes/api.roles": typeof import("./app/routes/api.roles.ts");
   "routes/api.roles.seed": typeof import("./app/routes/api.roles.seed.ts");
+  "routes/api.appwrite.health": typeof import("./app/routes/api.appwrite.health.ts");
   "routes/api.roles.$id": typeof import("./app/routes/api.roles.$id.ts");
   "routes/api.pipeline.execute": typeof import("./app/routes/api.pipeline.execute.ts");
   "routes/settings.agents": typeof import("./app/routes/settings.agents.tsx");

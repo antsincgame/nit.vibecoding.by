@@ -72,11 +72,7 @@ export async function listProjects(): Promise<Project[]> {
 export async function getProject(id: string): Promise<Project> {
   await ready();
   const db = getDb();
-  const doc = await db.getDocument({
-    databaseId: getMasterDbId(),
-    collectionId: COLLECTIONS.PROJECTS,
-    documentId: id,
-  });
+  const doc = await db.getDocument(getMasterDbId(), COLLECTIONS.PROJECTS, id);
   return mapDoc(doc as unknown as ProjectDoc);
 }
 
@@ -88,11 +84,11 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
 
   const projectDbId = await createProjectDatabase(input.name);
 
-  const doc = await db.createDocument({
-    databaseId: getMasterDbId(),
-    collectionId: COLLECTIONS.PROJECTS,
-    documentId: ID.unique(),
-    data: {
+  const doc = await db.createDocument(
+    getMasterDbId(),
+    COLLECTIONS.PROJECTS,
+    ID.unique(),
+    {
       name: input.name,
       description: input.description,
       type: projectType,
@@ -102,7 +98,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
       created_at: now,
       updated_at: now,
     },
-  });
+  );
 
   return mapDoc(doc as unknown as ProjectDoc);
 }
@@ -123,12 +119,7 @@ export async function updateProject(
   if (data.agentId !== undefined) updates.agent_id = data.agentId;
   if (data.modelUsed !== undefined) updates.model_used = data.modelUsed;
 
-  const doc = await db.updateDocument({
-    databaseId: getMasterDbId(),
-    collectionId: COLLECTIONS.PROJECTS,
-    documentId: id,
-    data: updates,
-  });
+  const doc = await db.updateDocument(getMasterDbId(), COLLECTIONS.PROJECTS, id, updates);
 
   return mapDoc(doc as unknown as ProjectDoc);
 }
@@ -137,19 +128,11 @@ export async function deleteProject(id: string): Promise<void> {
   await ready();
   const db = getDb();
 
-  const doc = await db.getDocument({
-    databaseId: getMasterDbId(),
-    collectionId: COLLECTIONS.PROJECTS,
-    documentId: id,
-  });
+  const doc = await db.getDocument(getMasterDbId(), COLLECTIONS.PROJECTS, id);
 
   const databaseId = (doc as unknown as ProjectDoc).database_id;
 
-  await db.deleteDocument({
-    databaseId: getMasterDbId(),
-    collectionId: COLLECTIONS.PROJECTS,
-    documentId: id,
-  });
+  await db.deleteDocument(getMasterDbId(), COLLECTIONS.PROJECTS, id);
 
   if (databaseId) {
     await deleteProjectDatabase(databaseId);

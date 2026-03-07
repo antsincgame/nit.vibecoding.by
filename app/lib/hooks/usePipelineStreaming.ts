@@ -225,6 +225,10 @@ export function usePipelineStreaming() {
                 logger.warn("pipeline", event.message);
                 break;
 
+              case "awaiting_user":
+                logger.info("pipeline", `${event.roleName}: ${event.message}`);
+                break;
+
               case "done":
                 break;
             }

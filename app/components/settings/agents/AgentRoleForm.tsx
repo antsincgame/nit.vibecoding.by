@@ -13,7 +13,8 @@ interface AgentRoleFormProps {
   role?: AgentRole | null; // null = create mode
   providers: AIAgent[];
   promptOverride?: string | null;
-  inline?: boolean;
+  /** true = render as block; 'embedded' = render below card, no top border/margin */
+  inline?: boolean | "embedded";
 }
 
 const EMPTY_FORM = {
@@ -32,6 +33,7 @@ const EMPTY_FORM = {
 };
 
 export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOverride, inline = false }: AgentRoleFormProps) {
+  const embedded = inline === "embedded";
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -335,7 +337,14 @@ export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOv
   if (!open) return null;
   if (inline) {
     return (
-      <div className="glass rounded-lg p-4 border border-border-subtle mb-6">
+      <div
+        className={cn(
+          "glass p-4",
+          embedded
+            ? "border-t border-border-subtle rounded-b-lg -mt-1"
+            : "rounded-lg border border-border-subtle mb-6",
+        )}
+      >
         <h3 className="text-sm font-heading uppercase tracking-[0.2em] text-gold-pure mb-4">
           {isEdit ? `Редактирование: ${role?.name}` : "Новая роль"}
         </h3>

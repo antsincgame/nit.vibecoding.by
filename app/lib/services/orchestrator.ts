@@ -92,6 +92,32 @@ function validateStepOutput(role: AgentRole, output: string): ValidationResult {
   }
 }
 
+// ─── Clarifying questions detection ──────────────────────
+
+function isClarifyingQuestions(role: AgentRole, output: string): boolean {
+  const trimmed = output.trim();
+  if (trimmed.length > 1200) return false;
+
+  const hasQuestionMarks = (trimmed.match(/\?/g) ?? []).length >= 1;
+  if (!hasQuestionMarks) return false;
+
+  const hasArtifact = trimmed.includes("<nitArtifact") || trimmed.includes("<nitAction");
+  if (hasArtifact) return false;
+
+  if (role.id === "role_architect") {
+    const validation = validateArchitectOutput(output);
+    if (validation.valid) return false;
+  }
+
+  const questionPatterns = [
+    /уточн/i, /какой|какая|какие|какое/i, /как\s+(вы|ты|вам)/i,
+    /нужн/i, /предпочита/i, /хотите|хочешь/i, /есть\s+ли/i,
+    /что\s+именно/i, /какие\s+раздел/i, /какой\s+стиль/i,
+  ];
+  const looksLikeQuestions = questionPatterns.some((p) => p.test(trimmed));
+  return looksLikeQuestions;
+}
+
 // ─── Tester critical error detection ─────────────────────
 
 function testerFoundCriticalErrors(output: string): boolean {
@@ -325,6 +351,16 @@ export async function* executeOrchestrated(
 
     if (!stepSucceeded) {
       yield { type: "error", message: `${role.name}: шаг не завершён`, roleName: role.name };
+      return;
+    }
+
+    // Clarifying questions → stop chain, wait for user answer
+    if (isClarifyingQuestions(role, stepOutput)) {
+      yield {
+        type: "awaiting_user",
+        roleName: role.name,
+        message: `${role.name} задал уточняющие вопросы. Ответьте в чате — цепочка продолжится с учётом вашего ответа.`,
+      };
       return;
     }
 

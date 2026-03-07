@@ -6,6 +6,7 @@
 
 import { ensureMasterSchema } from "~/lib/db/appwrite";
 import { seedOrCreateDefaultRoles, seedOrCreateDefaultRolesForce } from "~/lib/db/appwrite";
+import { logger } from "~/lib/utils/logger";
 
 export async function loader({ request }: { request: Request }) {
   if (request.method !== "GET") return null;
@@ -45,7 +46,6 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ ok: false, message: result.message }, { status: 409 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Ошибка при создании ролей";
-    const { logger } = await import("~/lib/utils/logger");
     logger.error("api.roles.seed", "Seed failed", err);
     return Response.json({ error: msg }, { status: 500 });
   }

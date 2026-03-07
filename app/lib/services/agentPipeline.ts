@@ -19,7 +19,7 @@ import type {
 } from "@shared/types/agentRole";
 import { CHAIN_ROLE_ID, AUTO_ROLE_ID } from "@shared/types/agentRole";
 import { getAllRoles, getRoleById, getLockedRole } from "./roleService";
-import { routeToAgent } from "./agentRouter";
+import { routeToAgent, type RouterOptions } from "./agentRouter";
 import { logPipelineStep } from "./pipelineLogger";
 import { buildSystemPrompt } from "~/lib/server/llm/prompts";
 import { LLMManager } from "~/lib/llm/manager";
@@ -69,7 +69,7 @@ export async function selectRole(
   roleId: string,
   userMessage: string,
   forceRole = false,
-  routerOptions?: { providerId: string; modelName: string },
+  routerOptions?: RouterOptions,
 ): Promise<{ role: AgentRole; selectedBy: AgentSelectedBy }> {
   const memory = sessions.get(sessionId);
   const isNewSession = !memory || memory.steps.length === 0;
@@ -106,6 +106,17 @@ export async function selectRole(
   return { role, selectedBy: "router_llm" };
 }
 
+// ─── Shared protocol (code→artifact, questions→chat) ───────
+
+const SHARED_PROTOCOL = `
+<protocol_output>
+ПРОТОКОЛ ВЫВОДА (строго):
+- Код, JSON, структурированные данные — ТОЛЬКО в nitArtifact/nitAction или в формате роли. В чат — НИКОГДА.
+- Уточняющие вопросы — ТОЛЬКО в чат (plain text). Если вариантов реализации много — задай 1–3 вопроса, дождись ответа.
+- Учитывай полный контекст проекта: предыдущие шаги, ответы пользователя, структуру.
+- Если запрос неоднозначен или допускает много трактовок — спроси в чат, не генерируй наугад.
+</protocol_output>`;
+
 // ─── Prompt assembly ─────────────────────────────────────
 
 export function buildAgentPrompt(
@@ -122,9 +133,9 @@ export function buildAgentPrompt(
 
   if (role.includeNitPrompt) {
     const nitSystemPrompt = buildSystemPrompt(projectType);
-    system = `${nitSystemPrompt}\n\n=== РОЛЬ АГЕНТА: ${role.name} ===\n${role.systemPrompt}`;
+    system = `${SHARED_PROTOCOL}\n\n${nitSystemPrompt}\n\n=== РОЛЬ АГЕНТА: ${role.name} ===\n${role.systemPrompt}`;
   } else {
-    system = `Ты агент веб-студии.\n\n=== РОЛЬ: ${role.name} ===\n${role.systemPrompt}`;
+    system = `${SHARED_PROTOCOL}\n\nТы агент веб-студии.\n\n=== РОЛЬ: ${role.name} ===\n${role.systemPrompt}`;
   }
 
   const parts: string[] = [];

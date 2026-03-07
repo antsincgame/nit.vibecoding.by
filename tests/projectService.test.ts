@@ -38,28 +38,28 @@ vi.mock("~/lib/db/appwrite", () => {
         const result = applyQueries([...col], queries);
         return { total: result.length, documents: result.map(d => ({ ...d })) };
       },
-      getDocument: async (opts: { databaseId: string; collectionId: string; documentId: string }) => {
-        const col = getCol(opts.databaseId, opts.collectionId);
-        const doc = col.find(d => d.$id === opts.documentId);
-        if (!doc) throw new Error(`Document not found: ${opts.documentId}`);
+      getDocument: async (dbId: string, collId: string, docId: string) => {
+        const col = getCol(dbId, collId);
+        const doc = col.find(d => d.$id === docId);
+        if (!doc) throw new Error(`Document not found: ${docId}`);
         return { ...doc };
       },
-      createDocument: async (opts: { databaseId: string; collectionId: string; documentId: string; data: Record<string, unknown> }) => {
-        const col = getCol(opts.databaseId, opts.collectionId);
-        const doc = { $id: opts.documentId, ...opts.data };
+      createDocument: async (dbId: string, collId: string, docId: string, data: Record<string, unknown>) => {
+        const col = getCol(dbId, collId);
+        const doc = { $id: docId, ...data };
         col.push(doc);
         return { ...doc };
       },
-      updateDocument: async (opts: { databaseId: string; collectionId: string; documentId: string; data: Record<string, unknown> }) => {
-        const col = getCol(opts.databaseId, opts.collectionId);
-        const doc = col.find(d => d.$id === opts.documentId);
-        if (!doc) throw new Error(`Document not found: ${opts.documentId}`);
-        Object.assign(doc, opts.data);
+      updateDocument: async (dbId: string, collId: string, docId: string, data: Record<string, unknown>) => {
+        const col = getCol(dbId, collId);
+        const doc = col.find(d => d.$id === docId);
+        if (!doc) throw new Error(`Document not found: ${docId}`);
+        Object.assign(doc, data);
         return { ...doc };
       },
-      deleteDocument: async (opts: { databaseId: string; collectionId: string; documentId: string }) => {
-        const col = getCol(opts.databaseId, opts.collectionId);
-        const idx = col.findIndex(d => d.$id === opts.documentId);
+      deleteDocument: async (dbId: string, collId: string, docId: string) => {
+        const col = getCol(dbId, collId);
+        const idx = col.findIndex(d => d.$id === docId);
         if (idx !== -1) col.splice(idx, 1);
       },
     }),

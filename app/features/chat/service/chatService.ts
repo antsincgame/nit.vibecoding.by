@@ -65,19 +65,11 @@ export async function saveProjectMessages(
     );
 
     for (const doc of existing.documents) {
-      await db.deleteDocument({
-        databaseId,
-        collectionId: COLLECTIONS.CHAT_MESSAGES,
-        documentId: doc.$id,
-      });
+      await db.deleteDocument(databaseId, COLLECTIONS.CHAT_MESSAGES, doc.$id);
     }
 
     for (const msg of messages) {
-      await db.createDocument({
-        databaseId,
-        collectionId: COLLECTIONS.CHAT_MESSAGES,
-        documentId: msg.id ?? ID.unique(),
-        data: {
+      const docData = {
           role: msg.role,
           content: msg.content,
           timestamp: msg.timestamp,
@@ -87,8 +79,13 @@ export async function saveProjectMessages(
           agent_role_name: msg.agentRoleName ?? null,
           selected_by: msg.selectedBy ?? null,
           duration_ms: msg.durationMs ?? null,
-        },
-      });
+        };
+      await db.createDocument(
+        databaseId,
+        COLLECTIONS.CHAT_MESSAGES,
+        msg.id ?? ID.unique(),
+        docData,
+      );
     }
   } catch (err) {
     logger.error("chatService", "Failed to save project messages", err);
@@ -107,10 +104,6 @@ export async function deleteProjectMessages(
   );
 
   for (const doc of existing.documents) {
-    await db.deleteDocument({
-      databaseId,
-      collectionId: COLLECTIONS.CHAT_MESSAGES,
-      documentId: doc.$id,
-    });
+    await db.deleteDocument(databaseId, COLLECTIONS.CHAT_MESSAGES, doc.$id);
   }
 }

@@ -11,6 +11,8 @@ interface AgentRoleCardProps {
   onDelete: () => void;
   onTest: () => void;
   onHistory: () => void;
+  /** When true, card has no bottom border/radius (form expands below) */
+  isExpanded?: boolean;
   // Drag & drop
   isDragging?: boolean;
   isDragOver?: boolean;
@@ -27,6 +29,7 @@ export function AgentRoleCard({
   onDelete,
   onTest,
   onHistory,
+  isExpanded,
   isDragging,
   isDragOver,
   onDragStart,
@@ -43,10 +46,11 @@ export function AgentRoleCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
-        "glass rounded-lg border p-4 space-y-3 transition-all",
+        "glass p-4 space-y-3 transition-all",
+        isExpanded ? "rounded-t-lg border-x border-t border-border-subtle" : "rounded-lg border border-border-subtle",
         isDragging && "opacity-40 scale-[0.98]",
         isDragOver && "border-gold-pure/50 bg-gold-pure/5",
-        !isDragging && !isDragOver && "border-border-subtle",
+        !isDragging && !isDragOver && !isExpanded && "border-border-subtle",
       )}
     >
       {/* Header */}

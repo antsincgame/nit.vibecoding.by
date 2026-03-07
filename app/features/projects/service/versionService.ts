@@ -84,11 +84,11 @@ export async function createVersion(data: {
   const lastDoc = existing.documents[0] as unknown as VersionDoc | undefined;
   const nextNumber = lastDoc ? lastDoc.version_number + 1 : 1;
 
-  const doc = await db.createDocument({
-    databaseId: data.databaseId,
-    collectionId: COLLECTIONS.VERSIONS,
-    documentId: ID.unique(),
-    data: {
+  const doc = await db.createDocument(
+    data.databaseId,
+    COLLECTIONS.VERSIONS,
+    ID.unique(),
+    {
       code: JSON.stringify(data.code),
       prompt: data.prompt,
       model: data.model,
@@ -97,7 +97,7 @@ export async function createVersion(data: {
       version_number: nextNumber,
       created_at: now,
     },
-  });
+  );
 
   return mapDoc(doc as unknown as VersionDoc, data.databaseId);
 }
@@ -107,9 +107,5 @@ export async function deleteVersion(
   versionId: string,
 ): Promise<void> {
   const db = getDb();
-  await db.deleteDocument({
-    databaseId,
-    collectionId: COLLECTIONS.VERSIONS,
-    documentId: versionId,
-  });
+  await db.deleteDocument(databaseId, COLLECTIONS.VERSIONS, versionId);
 }

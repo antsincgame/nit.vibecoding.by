@@ -7,6 +7,7 @@ import {
   executeStepStreaming,
 } from "~/lib/services/agentPipeline";
 import { executeOrchestrated } from "~/lib/services/orchestrator";
+import { checkRateLimit } from "~/lib/utils/rateLimit";
 
 const ExecuteSchema = z.object({
   projectId: z.string().min(1),
@@ -25,6 +26,18 @@ function sseEncode(event: PipelineEvent): string {
 }
 
 export async function action({ request }: { request: Request }) {
+  const rateLimit = checkRateLimit(request, { maxRequests: 20, windowMs: 60_000 });
+  if (!rateLimit.allowed) {
+    const retrySec = rateLimit.retryAfterMs ? Math.ceil(rateLimit.retryAfterMs / 1000) : 60;
+    return Response.json(
+      { error: "Too many requests", retryAfter: retrySec },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retrySec) },
+      },
+    );
+  }
+
   const rawBody = await request.json().catch(() => null);
   if (!rawBody) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });

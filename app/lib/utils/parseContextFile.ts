@@ -45,7 +45,7 @@ async function parsePdf(file: File): Promise<string> {
   const { getDocument } = await import("pdfjs-dist");
 
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await getDocument({ data: arrayBuffer }).promise;
   const numPages = pdf.numPages;
   const parts: string[] = [];
 
@@ -53,7 +53,7 @@ async function parsePdf(file: File): Promise<string> {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const pageText = content.items
-      .map((item) => ("str" in item ? item.str : ""))
+      .map((item) => ("str" in item ? (item.str ?? "") : ""))
       .join(" ");
     parts.push(pageText);
   }

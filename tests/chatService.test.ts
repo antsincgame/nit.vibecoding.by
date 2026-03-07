@@ -40,19 +40,19 @@ vi.mock("~/lib/db/appwrite", () => {
         const result = applyQueries([...col], queries);
         return { total: result.length, documents: result.map(d => ({ ...d })) };
       },
-      createDocument: async (opts: { databaseId: string; collectionId: string; documentId: string; data: Record<string, unknown> }) => {
-        const col = getCol(opts.databaseId, opts.collectionId);
-        const doc = { $id: opts.documentId, ...opts.data };
+      createDocument: async (dbId: string, collId: string, docId: string, data: Record<string, unknown>) => {
+        const col = getCol(dbId, collId);
+        const doc = { $id: docId, ...data };
         col.push(doc);
         return { ...doc };
       },
-      deleteDocument: async (opts: { databaseId: string; collectionId: string; documentId: string }) => {
-        const col = getCol(opts.databaseId, opts.collectionId);
-        const idx = col.findIndex(d => d.$id === opts.documentId);
+      deleteDocument: async (dbId: string, collId: string, docId: string) => {
+        const col = getCol(dbId, collId);
+        const idx = col.findIndex(d => d.$id === docId);
         if (idx !== -1) col.splice(idx, 1);
       },
     }),
-    COLLECTIONS: { CHAT_MESSAGES: "chat_messages" },
+    COLLECTIONS: { CHAT_MESSAGES: "chat_messages" } as { CHAT_MESSAGES: string },
     ID: { unique: () => `msg_${++idCounter}` },
     Query: {
       orderAsc: (field: string) => ({ type: "orderAsc", field }),

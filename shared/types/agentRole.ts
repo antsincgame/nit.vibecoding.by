@@ -69,6 +69,7 @@ export type PipelineEvent =
   | { type: "chain_progress"; current: number; total: number }
   | { type: "error"; message: string; roleName?: string }
   | { type: "warning"; message: string }
+  | { type: "awaiting_user"; roleName: string; message: string }  // role asked questions, chain pauses for user answer
   | { type: "done" };
 
 // === Pipeline log (stored in Appwrite Master DB) ===

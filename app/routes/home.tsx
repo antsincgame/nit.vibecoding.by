@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { Header } from "~/components/header/Header";
 import { SacredBackground } from "~/components/ui/SacredBackground";
 import { ParticleField } from "~/components/ui/ParticleField";
-import { ChatPanel } from "~/components/chat/ChatPanel";
-import { Workbench } from "~/components/editor/Workbench";
 import { ProjectList } from "~/components/sidebar/ProjectList";
 import { VersionHistory } from "~/components/sidebar/VersionHistory";
 import { useAgentDiscovery } from "~/features/agents/hooks/useAgentDiscovery";
@@ -20,6 +18,20 @@ import { abortActivePipeline } from "~/lib/hooks/usePipelineStreaming";
 import { cn } from "~/lib/utils/cn";
 import { sanitizeVersionCode } from "~/lib/utils/codeParser";
 
+const ChatPanel = lazy(() =>
+  import("~/components/chat/ChatPanel").then((m) => ({ default: m.ChatPanel })),
+);
+const Workbench = lazy(() =>
+  import("~/components/editor/Workbench").then((m) => ({ default: m.Workbench })),
+);
+
+function LoadingPanel() {
+  return (
+    <div className="flex items-center justify-center h-full min-h-[200px] text-text-muted animate-pulse">
+      <span className="text-sm">Загрузка…</span>
+    </div>
+  );
+}
 
 function AgentStatusBar() {
   const { agents, isDiscovering } = useAgentStore();
@@ -163,12 +175,16 @@ export default function Home() {
 
         <main className="flex-1 flex min-h-0 min-w-0 overflow-hidden">
           <div className="w-[340px] flex-shrink-0 flex flex-col min-h-0 overflow-hidden border-r border-border-subtle">
-            <ChatPanel />
+            <Suspense fallback={<LoadingPanel />}>
+              <ChatPanel />
+            </Suspense>
           </div>
 
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-            <Workbench />
-      </div>
+            <Suspense fallback={<LoadingPanel />}>
+              <Workbench />
+            </Suspense>
+          </div>
     </main>
   </div>
 </SacredBackground>
