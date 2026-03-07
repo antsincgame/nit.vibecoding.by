@@ -40,9 +40,6 @@ export function AgentRoleCard({
 
   return (
     <div
-      draggable={canDrag}
-      onDragStart={canDrag ? onDragStart : undefined}
-      onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
@@ -50,14 +47,21 @@ export function AgentRoleCard({
         isDragging && "opacity-40 scale-[0.98]",
         isDragOver && "border-gold-pure/50 bg-gold-pure/5",
         !isDragging && !isDragOver && "border-border-subtle",
-        canDrag && "cursor-grab active:cursor-grabbing",
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {canDrag && (
-            <span className="text-text-muted/40 text-xs select-none" title={t("role.drag_hint")}>⠿</span>
+            <span
+              draggable
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              className="text-text-muted/40 text-xs select-none cursor-grab active:cursor-grabbing hover:text-text-muted"
+              title={t("role.drag_hint")}
+            >
+              ⠿
+            </span>
           )}
           <span className="text-lg">{icon}</span>
           <h3 className="text-sm font-heading text-text-primary">{role.name}</h3>
