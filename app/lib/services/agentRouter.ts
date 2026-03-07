@@ -9,8 +9,8 @@ import { LLMManager } from "~/lib/llm/manager";
 import { generateText } from "ai";
 import { logger } from "~/lib/utils/logger";
 
-const ROUTER_PROVIDER = process.env.ROUTER_PROVIDER_ID ?? "ollama";
-const ROUTER_MODEL = process.env.ROUTER_MODEL_NAME ?? "mistral";
+const ROUTER_PROVIDER_DEFAULT = process.env.ROUTER_PROVIDER_ID ?? "ollama";
+const ROUTER_MODEL_DEFAULT = process.env.ROUTER_MODEL_NAME ?? "mistral";
 
 function buildRouterPrompt(
   roles: AgentRole[],
@@ -70,10 +70,16 @@ function parseRouterResponse(text: string, roles: AgentRole[]): AgentRole {
   return roles[0]!;
 }
 
+export type RouterOptions = {
+  providerId?: string;
+  modelName?: string;
+};
+
 export async function routeToAgent(
   roles: AgentRole[],
   memory: AgentMemory,
   userMessage: string,
+  options?: RouterOptions,
 ): Promise<AgentRole> {
   if (roles.length === 0) {
     throw new Error("No roles available for routing");
@@ -83,17 +89,20 @@ export async function routeToAgent(
     return roles[0]!;
   }
 
+  const providerId = options?.providerId ?? ROUTER_PROVIDER_DEFAULT;
+  const modelName = options?.modelName ?? ROUTER_MODEL_DEFAULT;
+
   try {
     const manager = LLMManager.getInstance(process.env as Record<string, string>);
-    const provider = manager.getProvider(ROUTER_PROVIDER);
+    const provider = manager.getProvider(providerId);
 
     if (!provider) {
-      logger.warn("agentRouter", `Router provider "${ROUTER_PROVIDER}" not found, falling back to first role`);
+      logger.warn("agentRouter", `Router provider "${providerId}" not found, falling back to first role`);
       return roles[0]!;
     }
 
     const modelInstance = provider.getModelInstance({
-      model: ROUTER_MODEL,
+      model: modelName,
       serverEnv: process.env as Record<string, string>,
     });
 

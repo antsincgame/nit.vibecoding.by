@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ensureMasterSchema } from "~/lib/db/appwrite";
 import {
   getAllRoles,
   createRole,
@@ -7,9 +8,10 @@ import {
 
 // GET /api/roles — list all roles
 export async function loader({ request }: { request: Request }) {
+  await ensureMasterSchema();
   const url = new URL(request.url);
   const activeOnly = url.searchParams.get("active") === "true";
-  const roles = getAllRoles(activeOnly);
+  const roles = await getAllRoles(activeOnly);
   return Response.json({ roles });
 }
 
@@ -46,7 +48,7 @@ export async function action({ request }: { request: Request }) {
     if (!parsed.success) {
       return Response.json({ error: parsed.error.message }, { status: 400 });
     }
-    reorderRoles(parsed.data.orderedIds);
+    await reorderRoles(parsed.data.orderedIds);
     return Response.json({ ok: true });
   }
 
@@ -58,7 +60,7 @@ export async function action({ request }: { request: Request }) {
   }
 
   try {
-    const role = createRole(parsed.data);
+    const role = await createRole(parsed.data);
     return Response.json({ role }, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to create role";

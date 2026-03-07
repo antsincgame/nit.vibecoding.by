@@ -1,4 +1,8 @@
 import { defineConfig } from "vitest/config";
+import { resolve } from "path";
+import { fileURLToPath } from "url";
+
+const root = resolve(fileURLToPath(import.meta.url), "..");
 
 export default defineConfig({
   test: {
@@ -8,8 +12,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "~": "/home/claude/nit/app",
-      "@shared": "/home/claude/nit/shared",
+      "~": resolve(root, "app"),
+      "@shared": resolve(root, "shared"),
     },
   },
 });

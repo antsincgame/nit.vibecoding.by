@@ -13,8 +13,28 @@ vi.mock("ai", () => ({
   streamText: vi.fn(),
   generateText: vi.fn(),
 }));
-vi.mock("~/lib/services/pipelineLogger", () => ({ logPipelineStep: vi.fn() }));
+vi.mock("~/lib/services/pipelineLogger", () => ({ logPipelineStep: vi.fn(async () => {}) }));
 vi.mock("~/lib/services/agentRouter", () => ({ routeToAgent: vi.fn() }));
+
+const SEED_ROLES = [
+  { id: "role_analyst", name: "Аналитик", description: "Уточнение требований", systemPrompt: "x".repeat(60), providerId: "ollama", modelName: "mistral", order: 1, isActive: true, isLocked: false, timeoutMs: 60000, maxRetries: 2, outputFormat: "freetext" as const, includeNitPrompt: false, temperature: 0.4, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
+  { id: "role_architect", name: "Архитектор", description: "Создаёт структуру", systemPrompt: "x".repeat(60), providerId: "ollama", modelName: "mistral", order: 2, isActive: true, isLocked: true, timeoutMs: 60000, maxRetries: 2, outputFormat: "json" as const, includeNitPrompt: false, temperature: 0.3, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
+  { id: "role_designer", name: "Дизайнер", description: "Визуальный стиль", systemPrompt: "x".repeat(60), providerId: "ollama", modelName: "mistral", order: 3, isActive: true, isLocked: false, timeoutMs: 60000, maxRetries: 2, outputFormat: "freetext" as const, includeNitPrompt: false, temperature: 0.5, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
+  { id: "role_copywriter", name: "Копирайтер", description: "Наполняет контентом", systemPrompt: "x".repeat(60), providerId: "ollama", modelName: "mistral", order: 4, isActive: true, isLocked: false, timeoutMs: 60000, maxRetries: 2, outputFormat: "freetext" as const, includeNitPrompt: false, temperature: 0.7, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
+  { id: "role_coder", name: "Кодер", description: "Генерирует код", systemPrompt: "x".repeat(60), providerId: "ollama", modelName: "mistral", order: 5, isActive: true, isLocked: false, timeoutMs: 60000, maxRetries: 2, outputFormat: "freetext" as const, includeNitPrompt: true, temperature: 0.3, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
+  { id: "role_tester", name: "Тестировщик", description: "Проверяет код", systemPrompt: "x".repeat(60), providerId: "ollama", modelName: "mistral", order: 6, isActive: true, isLocked: false, timeoutMs: 60000, maxRetries: 2, outputFormat: "freetext" as const, includeNitPrompt: false, temperature: 0.2, createdAt: "2025-01-01", updatedAt: "2025-01-01" },
+];
+
+vi.mock("~/lib/services/roleService", () => ({
+  getAllRoles: vi.fn(async (activeOnly = false) => activeOnly ? SEED_ROLES.filter(r => r.isActive) : [...SEED_ROLES]),
+  getRoleById: vi.fn(async (id: string) => SEED_ROLES.find(r => r.id === id) ?? null),
+  getLockedRole: vi.fn(async () => SEED_ROLES.find(r => r.isLocked) ?? null),
+  createRole: vi.fn(),
+  updateRole: vi.fn(),
+  deleteRole: vi.fn(),
+  reorderRoles: vi.fn(),
+  getPromptHistory: vi.fn(async () => []),
+}));
 
 import { planPipeline } from "~/lib/services/orchestrator";
 import { getOrCreateSession } from "~/lib/services/agentPipeline";
@@ -22,13 +42,7 @@ import { getAllRoles } from "~/lib/services/roleService";
 import { generateText } from "ai";
 import { LLMManager } from "~/lib/llm/manager";
 
-// ─── Extract testerFoundCriticalErrors for direct testing ───
-// We can't import private function, so we test it through planPipeline
-// and through pattern matching unit tests.
-
 describe("testerFoundCriticalErrors detection patterns", () => {
-  // We test the logic inline since the function is not exported.
-  // Replicate the exact logic here for unit testing.
   function hasCritical(output: string): boolean {
     const lower = output.toLowerCase();
     if (lower.includes("итого: pass") || lower.includes("итого:pass")) return false;
@@ -96,8 +110,8 @@ describe("planPipeline", () => {
   it("returns full chain for new session", async () => {
     const memory = getOrCreateSession(`plan-new-${Date.now()}`, "p1");
     const plan = await planPipeline(memory, "Создай лендинг");
-    expect(plan.steps.length).toBeGreaterThanOrEqual(4);
-    expect(plan.steps[0]!.name).toBe("Архитектор");
+    expect(plan.steps.length).toBeGreaterThanOrEqual(6);
+    expect(plan.steps[0]!.name).toBe("Аналитик");
     expect(plan.reasoning).toContain("Новая сессия");
   });
 
@@ -112,7 +126,7 @@ describe("planPipeline", () => {
     vi.mocked(LLMManager.getInstance).mockReturnValue({
       getProvider: vi.fn(() => null),
       getAllProviders: vi.fn(() => []),
-    } as any);
+    } as unknown as LLMManager);
 
     const plan = await planPipeline(memory, "test");
     expect(plan.steps.length).toBeGreaterThan(0);
@@ -132,14 +146,15 @@ describe("planPipeline", () => {
         getModelInstance: vi.fn(() => ({})),
       })),
       getAllProviders: vi.fn(() => []),
-    } as any);
+    } as unknown as LLMManager);
     vi.mocked(generateText).mockResolvedValueOnce({
       text: '{"needed":["role_coder"],"reasoning":"Только код"}',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof generateText>>);
 
     const plan = await planPipeline(memory, "Поменяй цвет");
     expect(plan.steps.some((r) => r.id === "role_coder")).toBe(true);
-    expect(plan.steps.length).toBeLessThan(getAllRoles(true).length);
+    const allActive = await getAllRoles(true);
+    expect(plan.steps.length).toBeLessThan(allActive.length);
   });
 
   it("force-adds Кодер when Architect selected but Coder missing", async () => {
@@ -155,10 +170,10 @@ describe("planPipeline", () => {
         getModelInstance: vi.fn(() => ({})),
       })),
       getAllProviders: vi.fn(() => []),
-    } as any);
+    } as unknown as LLMManager);
     vi.mocked(generateText).mockResolvedValueOnce({
       text: '{"needed":["role_architect"],"reasoning":"Новая структура"}',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof generateText>>);
 
     const plan = await planPipeline(memory, "Переделай структуру");
     expect(plan.steps.some((r) => r.id === "role_architect")).toBe(true);

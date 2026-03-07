@@ -32,8 +32,6 @@ const sessions = new Map<string, AgentMemory>();
 
 const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const CLEANUP_INTERVAL = 15 * 60 * 1000;
-const MAX_CHAIN_LENGTH = 10;
-
 setInterval(() => {
   const now = Date.now();
   for (const [id, memory] of sessions) {
@@ -71,21 +69,23 @@ export async function selectRole(
   roleId: string,
   userMessage: string,
   forceRole = false,
+  routerOptions?: { providerId: string; modelName: string },
 ): Promise<{ role: AgentRole; selectedBy: AgentSelectedBy }> {
   const memory = sessions.get(sessionId);
   const isNewSession = !memory || memory.steps.length === 0;
 
   // Rule 0: forceRole bypasses new-session Architect lock (used by PromptTester)
   if (forceRole && roleId && roleId !== CHAIN_ROLE_ID && roleId !== AUTO_ROLE_ID) {
-    const role = getRoleById(roleId);
+    const role = await getRoleById(roleId);
     if (role && role.isActive) return { role, selectedBy: "user" };
   }
 
   // Rule 1: New session → always Architect
   if (isNewSession) {
-    const architect = getLockedRole();
+    const architect = await getLockedRole();
     if (architect) return { role: architect, selectedBy: "hardcoded" };
-    const first = getAllRoles(true)[0];
+    const allActive = await getAllRoles(true);
+    const first = allActive[0];
     if (!first) throw new Error("Нет активных ролей. Создайте роли в настройках.");
     return { role: first, selectedBy: "hardcoded" };
   }
@@ -94,15 +94,15 @@ export async function selectRole(
 
   // Rule 2: User explicitly selected a role
   if (roleId && roleId !== CHAIN_ROLE_ID && roleId !== AUTO_ROLE_ID) {
-    const role = getRoleById(roleId);
+    const role = await getRoleById(roleId);
     if (role && role.isActive) return { role, selectedBy: "user" };
     logger.warn("selectRole", `Role "${roleId}" not found/inactive, falling back to auto`);
   }
 
   // Rule 3: Auto-select via LLM router
-  const activeRoles = getAllRoles(true);
+  const activeRoles = await getAllRoles(true);
   if (activeRoles.length === 0) throw new Error("Нет активных ролей.");
-  const role = await routeToAgent(activeRoles, memory!, userMessage);
+  const role = await routeToAgent(activeRoles, memory!, userMessage, routerOptions);
   return { role, selectedBy: "router_llm" };
 }
 
@@ -265,7 +265,7 @@ export async function* executeStepStreaming(
         errorMessage: "",
         retryCount,
         timestamp: step.timestamp,
-      });
+      }).catch(() => {});
 
       yield { type: "step_complete", roleName: role.name, durationMs };
       return;
@@ -293,71 +293,6 @@ export async function* executeStepStreaming(
       }
     }
   }
-}
-
-// ─── Chain execution: each step streams to client ────────
-
-export async function* executeChain(
-  memory: AgentMemory,
-  userMessage: string,
-  localContext: string,
-  projectType: string,
-  abortSignal?: AbortSignal,
-): AsyncGenerator<PipelineEvent> {
-  const activeRoles = getAllRoles(true);
-
-  if (activeRoles.length === 0) {
-    yield { type: "error", message: "Нет активных ролей." };
-    return;
-  }
-  if (activeRoles.length > MAX_CHAIN_LENGTH) {
-    yield { type: "error", message: `Слишком много ролей (${activeRoles.length}). Максимум: ${MAX_CHAIN_LENGTH}` };
-    return;
-  }
-
-  const total = activeRoles.length;
-
-  for (let i = 0; i < total; i++) {
-    const role = activeRoles[i]!;
-
-    if (abortSignal?.aborted) {
-      yield { type: "error", message: "Цепочка отменена" };
-      return;
-    }
-
-    const selectedBy: AgentSelectedBy = i === 0 && role.isLocked ? "hardcoded" : "user";
-
-    yield { type: "role_selected", roleId: role.id, roleName: role.name, selectedBy };
-    yield { type: "step_start", roleName: role.name, model: role.modelName, provider: role.providerId };
-    yield { type: "chain_progress", current: i + 1, total };
-
-    // Stream this step — forward all events to client
-    let stepSucceeded = false;
-
-    const stepGen = executeStepStreaming(
-      role,
-      memory,
-      userMessage,
-      i === 0 ? localContext : "",
-      projectType,
-      selectedBy,
-      abortSignal,
-    );
-
-    for await (const event of stepGen) {
-      yield event;
-
-      if (event.type === "step_complete") stepSucceeded = true;
-      if (event.type === "error") return; // Stop chain on error
-    }
-
-    if (!stepSucceeded) {
-      yield { type: "error", message: `${role.name}: шаг завершился без результата`, roleName: role.name };
-      return;
-    }
-  }
-
-  yield { type: "done" };
 }
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -401,7 +336,7 @@ function logErrorStep(
     errorMessage,
     retryCount,
     timestamp: now,
-  });
+  }).catch(() => {});
 }
 
 function tryParseJSON(text: string): unknown | undefined {

@@ -6,7 +6,6 @@ import { ChatPanel } from "~/components/chat/ChatPanel";
 import { Workbench } from "~/components/editor/Workbench";
 import { ProjectList } from "~/components/sidebar/ProjectList";
 import { VersionHistory } from "~/components/sidebar/VersionHistory";
-import { SettingsPanel } from "~/components/settings/SettingsPanel";
 import { useAgentDiscovery } from "~/features/agents/hooks/useAgentDiscovery";
 import { useProjects } from "~/features/projects/hooks/useProjects";
 import { useVersionHistory } from "~/features/projects/hooks/useVersionHistory";
@@ -135,7 +134,7 @@ export default function Home() {
   useAgentDiscovery();
 
   const language = useSettingsStore((s) => s.language);
-  const { sidebarOpen, settingsOpen, toggleSidebar, toggleSettings } = useUIStore();
+  const { sidebarOpen, toggleSidebar } = useUIStore();
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -144,9 +143,8 @@ export default function Home() {
   const shortcuts = useMemo(
     () => ({
       "mod+b": toggleSidebar,
-      "mod+,": toggleSettings,
     }),
-    [toggleSidebar, toggleSettings],
+    [toggleSidebar],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -170,11 +168,9 @@ export default function Home() {
 
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             <Workbench />
-          </div>
-        </main>
       </div>
-
-      <SettingsPanel open={settingsOpen} onClose={toggleSettings} />
-    </SacredBackground>
+    </main>
+  </div>
+</SacredBackground>
   );
 }

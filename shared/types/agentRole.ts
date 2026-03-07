@@ -1,4 +1,4 @@
-// === Agent Role (stored in Appwrite, later — in-memory seed for now) ===
+// === Agent Role (stored in Appwrite Master DB) ===
 
 export type AgentRole = {
   id: string;
@@ -71,7 +71,7 @@ export type PipelineEvent =
   | { type: "warning"; message: string }
   | { type: "done" };
 
-// === Pipeline log (for Appwrite, later) ===
+// === Pipeline log (stored in Appwrite Master DB) ===
 
 export type PipelineLog = {
   id?: string;
@@ -91,7 +91,7 @@ export type PipelineLog = {
   timestamp: string;
 };
 
-// === Prompt history (for Appwrite, later) ===
+// === Prompt history (stored in Appwrite Master DB) ===
 
 export type PromptHistoryEntry = {
   id?: string;

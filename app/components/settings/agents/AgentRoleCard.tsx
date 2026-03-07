@@ -1,13 +1,8 @@
 import type { AgentRole } from "@shared/types/agentRole";
 import { NeonButton } from "~/components/ui/NeonButton";
 import { cn } from "~/lib/utils/cn";
-
-const ROLE_ICONS: Record<string, string> = {
-  "Архитектор": "🏗️",
-  "Копирайтер": "✍️",
-  "Кодер": "💻",
-  "Тестировщик": "🧪",
-};
+import { getRoleIcon } from "~/lib/utils/roleIcon";
+import { useT } from "~/lib/utils/i18n";
 
 interface AgentRoleCardProps {
   role: AgentRole;
@@ -39,7 +34,8 @@ export function AgentRoleCard({
   onDragOver,
   onDrop,
 }: AgentRoleCardProps) {
-  const icon = ROLE_ICONS[role.name] ?? "🤖";
+  const t = useT();
+  const icon = getRoleIcon(role.name);
   const canDrag = !role.isLocked;
 
   return (
@@ -61,18 +57,18 @@ export function AgentRoleCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {canDrag && (
-            <span className="text-text-muted/40 text-xs select-none" title="Перетащите для сортировки">⠿</span>
+            <span className="text-text-muted/40 text-xs select-none" title={t("role.drag_hint")}>⠿</span>
           )}
           <span className="text-lg">{icon}</span>
           <h3 className="text-sm font-heading text-text-primary">{role.name}</h3>
           {role.isLocked && (
             <span className="text-[9px] px-1.5 py-0.5 bg-gold-pure/10 text-gold-pure rounded border border-gold-pure/20">
-              🔒 locked
+              🔒 {t("role.locked")}
             </span>
           )}
           {role.includeNitPrompt && (
             <span className="text-[9px] px-1.5 py-0.5 bg-neon-cyan/10 text-neon-cyan rounded border border-neon-cyan/20">
-              💻 код
+              💻 {t("role.code_mode")}
             </span>
           )}
         </div>
@@ -89,7 +85,7 @@ export function AgentRoleCard({
             )}
           />
           <span className="text-[10px] text-text-muted">
-            {role.isActive ? (providerOnline ? "Active" : "Provider offline") : "Inactive"}
+            {role.isActive ? (providerOnline ? t("role.active") : t("role.provider_offline")) : t("role.inactive")}
           </span>
         </div>
       </div>
@@ -117,17 +113,17 @@ export function AgentRoleCard({
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <NeonButton variant="ghost" size="sm" onClick={onEdit}>
-          Редактировать
+          {t("role.edit")}
         </NeonButton>
         <NeonButton variant="ghost" size="sm" onClick={onTest}>
-          Тест
+          {t("role.test")}
         </NeonButton>
         <NeonButton variant="ghost" size="sm" onClick={onHistory}>
-          📜 История
+          📜 {t("role.history")}
         </NeonButton>
         {!role.isLocked && (
           <NeonButton variant="danger" size="sm" onClick={onDelete}>
-            Удалить
+            {t("common.delete")}
           </NeonButton>
         )}
       </div>

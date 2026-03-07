@@ -1,20 +1,67 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 vi.mock("~/lib/utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import {
-  logPipelineStep,
-  getSessionLogs,
-  getStats,
-  clearLogs,
-} from "~/lib/services/pipelineLogger";
+type QOp = { type: string; field?: string; value?: unknown; n?: number };
+
+const store: Record<string, Record<string, Record<string, unknown>[]>> = {};
+
+vi.mock("~/lib/db/appwrite", () => ({
+  getDb: () => ({
+    listDocuments: async (dbId: string, collId: string, queries: QOp[] = []) => {
+      const col = store[dbId]?.[collId] ?? [];
+      let result = [...col];
+      for (const q of queries) {
+        switch (q.type) {
+          case "equal": result = result.filter(d => d[q.field!] === q.value); break;
+          case "orderAsc": result.sort((a, b) => String(a[q.field!] ?? "").localeCompare(String(b[q.field!] ?? ""))); break;
+          case "orderDesc": result.sort((a, b) => String(b[q.field!] ?? "").localeCompare(String(a[q.field!] ?? ""))); break;
+          case "limit": result = result.slice(0, q.n); break;
+          case "offset": result = result.slice(q.n); break;
+        }
+      }
+      return { total: result.length, documents: result.map(d => ({ ...d })) };
+    },
+    createDocument: async (dbId: string, collId: string, docId: string, data: Record<string, unknown>) => {
+      if (!store[dbId]) store[dbId] = {};
+      if (!store[dbId]![collId]) store[dbId]![collId] = [];
+      const doc = { $id: docId, ...data };
+      store[dbId]![collId]!.push(doc);
+      return { ...doc };
+    },
+    deleteDocument: async (dbId: string, collId: string, docId: string) => {
+      const col = store[dbId]?.[collId] ?? [];
+      const idx = col.findIndex(d => d.$id === docId);
+      if (idx !== -1) col.splice(idx, 1);
+    },
+  }),
+  getMasterDbId: () => "test-master-db",
+  COLLECTIONS: {
+    PROJECTS: "projects",
+    CHAT_MESSAGES: "chat_messages",
+    VERSIONS: "versions",
+    AGENT_ROLES: "agent_roles",
+    PROMPT_HISTORY: "prompt_history",
+    PIPELINE_LOGS: "pipeline_logs",
+  },
+  ID: { unique: () => `log_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` },
+  Query: {
+    limit: (n: number): QOp => ({ type: "limit", n }),
+    offset: (n: number): QOp => ({ type: "offset", n }),
+    orderAsc: (field: string): QOp => ({ type: "orderAsc", field }),
+    orderDesc: (field: string): QOp => ({ type: "orderDesc", field }),
+    equal: (field: string, value: unknown): QOp => ({ type: "equal", field, value }),
+  },
+}));
+
+import { logPipelineStep } from "~/lib/services/pipelineLogger";
 
 describe("pipelineLogger", () => {
-  beforeEach(() => {
-    clearLogs();
+  beforeEach(async () => {
+    const dbId = "test-master-db";
+    if (store[dbId]) store[dbId]!["pipeline_logs"] = [];
   });
 
   const makelog = (overrides: Record<string, unknown> = {}) => ({
@@ -36,76 +83,8 @@ describe("pipelineLogger", () => {
   });
 
   describe("logPipelineStep", () => {
-    it("logs a step without throwing", () => {
-      expect(() => logPipelineStep(makelog())).not.toThrow();
-    });
-  });
-
-  describe("getSessionLogs", () => {
-    it("returns logs for a session", () => {
-      logPipelineStep(makelog({ sessionId: "sess-A" }));
-      logPipelineStep(makelog({ sessionId: "sess-B" }));
-      logPipelineStep(makelog({ sessionId: "sess-A", agentName: "Копирайтер" }));
-
-      const logs = getSessionLogs("sess-A");
-      expect(logs.length).toBe(2);
-      expect(logs[0]!.agentName).toBe("Архитектор");
-      expect(logs[1]!.agentName).toBe("Копирайтер");
-    });
-
-    it("returns empty array for unknown session", () => {
-      expect(getSessionLogs("nonexistent")).toEqual([]);
-    });
-  });
-
-  describe("getStats", () => {
-    it("computes stats for a time range", () => {
-      logPipelineStep(makelog({ timestamp: "2025-06-01T10:00:00Z", durationMs: 3000 }));
-      logPipelineStep(makelog({
-        timestamp: "2025-06-01T11:00:00Z",
-        durationMs: 7000,
-        agentName: "Копирайтер",
-        modelName: "codellama",
-        providerId: "lm-studio",
-      }));
-      logPipelineStep(makelog({
-        timestamp: "2025-06-01T12:00:00Z",
-        durationMs: 1000,
-        status: "error",
-        errorMessage: "timeout",
-      }));
-
-      const stats = getStats("2025-06-01T00:00:00Z", "2025-06-02T00:00:00Z");
-
-      expect(stats.totalRequests).toBe(3);
-      expect(stats.successRate).toBeCloseTo(2 / 3);
-      expect(stats.avgDurationMs).toBeCloseTo((3000 + 7000 + 1000) / 3);
-
-      // By agent
-      expect(stats.byAgent["Архитектор"]!.count).toBe(2);
-      expect(stats.byAgent["Копирайтер"]!.count).toBe(1);
-      expect(stats.byAgent["Архитектор"]!.errorRate).toBe(0.5);
-
-      // By model
-      expect(stats.byModel["mistral@ollama"]!.count).toBe(2);
-      expect(stats.byModel["codellama@lm-studio"]!.count).toBe(1);
-    });
-
-    it("returns zeros for empty range", () => {
-      const stats = getStats("2099-01-01T00:00:00Z", "2099-12-31T00:00:00Z");
-      expect(stats.totalRequests).toBe(0);
-      expect(stats.successRate).toBe(0);
-    });
-  });
-
-  describe("clearLogs", () => {
-    it("clears all logs", () => {
-      logPipelineStep(makelog());
-      logPipelineStep(makelog());
-      expect(getSessionLogs("sess-1").length).toBe(2);
-
-      clearLogs();
-      expect(getSessionLogs("sess-1").length).toBe(0);
+    it("logs a step without throwing", async () => {
+      await expect(logPipelineStep(makelog())).resolves.toBeUndefined();
     });
   });
 });

@@ -3,7 +3,7 @@ import { useUIStore } from "~/lib/stores/uiStore";
 import { Link } from "react-router";
 
 export function Header() {
-  const { toggleSidebar, toggleSettings } = useUIStore();
+  const { toggleSidebar } = useUIStore();
 
   return (
     <header className="flex-shrink-0 flex items-center justify-between h-12 px-3 border-b border-border-subtle bg-deep-space/60 backdrop-blur-md gap-2">
@@ -31,15 +31,9 @@ export function Header() {
       <div className="flex items-center flex-shrink-0 gap-1">
         <Link
           to="/settings/agents"
-          className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface transition-colors text-text-secondary hover:text-gold-pure"
-          title="Agent Roles"
-        >
-          <span className="text-sm">🤖</span>
-        </Link>
-        <button
-          onClick={toggleSettings}
-          className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface transition-colors text-text-secondary hover:text-gold-pure"
+          className="w-8 h-8 flex items-center justify-center rounded hover:bg-surface transition-colors text-text-secondary hover:text-gold-pure glow-gold-hover"
           aria-label="Settings"
+          title="Настройки"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path
@@ -50,7 +44,7 @@ export function Header() {
             />
             <circle cx="8" cy="8.5" r="2" stroke="currentColor" strokeWidth="1.2" />
           </svg>
-        </button>
+        </Link>
       </div>
     </header>
   );

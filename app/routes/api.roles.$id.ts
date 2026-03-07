@@ -27,11 +27,11 @@ export async function loader({ request, params }: { request: Request; params: { 
 
   // GET /api/roles/:id?history=true → prompt history
   if (url.searchParams.get("history") === "true") {
-    const history = getPromptHistory(params.id);
+    const history = await getPromptHistory(params.id);
     return Response.json({ history });
   }
 
-  const role = getRoleById(params.id);
+  const role = await getRoleById(params.id);
   if (!role) {
     return Response.json({ error: "Role not found" }, { status: 404 });
   }
@@ -44,14 +44,14 @@ export async function action({ request, params }: { request: Request; params: { 
 
   // DELETE
   if (request.method === "DELETE") {
-    const role = getRoleById(id);
+    const role = await getRoleById(id);
     if (!role) {
       return Response.json({ error: "Role not found" }, { status: 404 });
     }
     if (role.isLocked) {
       return Response.json({ error: "Cannot delete locked role" }, { status: 403 });
     }
-    deleteRole(id);
+    await deleteRole(id);
     return Response.json({ ok: true });
   }
 
@@ -68,7 +68,7 @@ export async function action({ request, params }: { request: Request; params: { 
   }
 
   try {
-    const updated = updateRole(id, parsed.data);
+    const updated = await updateRole(id, parsed.data);
     if (!updated) {
       return Response.json({ error: "Role not found" }, { status: 404 });
     }

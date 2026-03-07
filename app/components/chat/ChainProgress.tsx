@@ -1,7 +1,9 @@
 import { useRoleStore } from "~/lib/stores/roleStore";
 import { cn } from "~/lib/utils/cn";
+import { useT } from "~/lib/utils/i18n";
 
 export function ChainProgress() {
+  const t = useT();
   const { pipelineStatus, isChainMode, chainSteps, chainCurrent, chainTotal } = useRoleStore();
 
   // Show when in chain mode and we have steps, regardless of exact pipelineStatus
@@ -14,7 +16,7 @@ export function ChainProgress() {
     <div className="mx-4 mb-2 glass rounded-lg px-3 py-2 border border-gold-pure/10">
       <div className="flex items-center gap-2 text-[10px] text-text-muted mb-2">
         <span>⚡</span>
-        <span>Цепочка ({chainCurrent}/{chainTotal})</span>
+        <span>{t("chain.title")} ({chainCurrent}/{chainTotal})</span>
       </div>
       <div className="space-y-1">
         {chainSteps.map((step, i) => (

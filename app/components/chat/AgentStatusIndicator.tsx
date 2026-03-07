@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useRoleStore } from "~/lib/stores/roleStore";
 import { cn } from "~/lib/utils/cn";
+import { useT } from "~/lib/utils/i18n";
 
 export function AgentStatusIndicator() {
+  const t = useT();
   const {
     pipelineStatus,
     currentRoleName,
@@ -46,7 +48,7 @@ export function AgentStatusIndicator() {
       <div className="mx-4 mb-2 glass rounded-lg px-3 py-2 border border-gold-pure/10">
         <div className="flex items-center gap-2 text-xs text-text-secondary animate-pulse">
           <span>🤖</span>
-          <span>Выбор роли...</span>
+          <span>{t("role.selecting")}</span>
         </div>
       </div>
     );

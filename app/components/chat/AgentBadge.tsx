@@ -1,17 +1,11 @@
 import type { ChatMessage } from "@shared/types/message";
 import { cn } from "~/lib/utils/cn";
-
-const ROLE_ICONS: Record<string, string> = {
-  "Архитектор": "🏗️",
-  "Копирайтер": "✍️",
-  "Кодер": "💻",
-  "Тестировщик": "🧪",
-};
+import { getRoleIcon } from "~/lib/utils/roleIcon";
 
 export function AgentBadge({ message }: { message: ChatMessage }) {
   if (message.role !== "assistant" || !message.agentRoleName) return null;
 
-  const icon = ROLE_ICONS[message.agentRoleName] ?? "🤖";
+  const icon = getRoleIcon(message.agentRoleName);
   const duration = message.durationMs
     ? `${(message.durationMs / 1000).toFixed(1)}с`
     : null;

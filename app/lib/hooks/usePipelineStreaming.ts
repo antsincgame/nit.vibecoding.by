@@ -2,6 +2,8 @@ import { useCallback, useRef } from "react";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { useRoleStore } from "~/lib/stores/roleStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
+import { useSettingsStore } from "~/lib/stores/settingsStore";
+import { useAgentStore } from "~/lib/stores/agentStore";
 import { IncrementalArtifactParser } from "~/lib/utils/codeParser";
 import type { PipelineEvent } from "@shared/types/agentRole";
 import { CHAIN_ROLE_ID } from "@shared/types/agentRole";

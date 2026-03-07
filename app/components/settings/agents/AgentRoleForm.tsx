@@ -13,6 +13,7 @@ interface AgentRoleFormProps {
   role?: AgentRole | null; // null = create mode
   providers: AIAgent[];
   promptOverride?: string | null;
+  inline?: boolean;
 }
 
 const EMPTY_FORM = {
@@ -25,12 +26,12 @@ const EMPTY_FORM = {
   isActive: true,
   timeoutMs: 60000,
   maxRetries: 2,
-  outputFormat: "freetext" as const,
+  outputFormat: "freetext" as AgentRole["outputFormat"],
   includeNitPrompt: false,
   temperature: 0.7,
 };
 
-export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOverride }: AgentRoleFormProps) {
+export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOverride, inline = false }: AgentRoleFormProps) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,9 +113,8 @@ export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOv
     }
   };
 
-  return (
-    <NeonModal open={open} onClose={onClose} title={isEdit ? `Редактирование: ${role?.name}` : "Новая роль"}>
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+  const formContent = (
+    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         {/* Name */}
         <NeonInput
           label="Имя роли"
@@ -330,6 +330,22 @@ export function AgentRoleForm({ open, onClose, onSave, role, providers, promptOv
           </NeonButton>
         </div>
       </div>
+  );
+
+  if (!open) return null;
+  if (inline) {
+    return (
+      <div className="glass rounded-lg p-4 border border-border-subtle mb-6">
+        <h3 className="text-sm font-heading uppercase tracking-[0.2em] text-gold-pure mb-4">
+          {isEdit ? `Редактирование: ${role?.name}` : "Новая роль"}
+        </h3>
+        {formContent}
+      </div>
+    );
+  }
+  return (
+    <NeonModal open={open} onClose={onClose} title={isEdit ? `Редактирование: ${role?.name}` : "Новая роль"}>
+      {formContent}
     </NeonModal>
   );
 }

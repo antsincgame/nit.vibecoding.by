@@ -61,8 +61,8 @@ function setupMockLLM(response: string) {
   };
   vi.mocked(LLMManager.getInstance).mockReturnValue({
     getProvider: vi.fn(() => mockProvider),
-  } as any);
-  vi.mocked(generateText).mockResolvedValue({ text: response } as any);
+  } as unknown as LLMManager);
+  vi.mocked(generateText).mockResolvedValue({ text: response } as unknown as Awaited<ReturnType<typeof generateText>>);
 }
 
 describe("agentRouter", () => {
@@ -97,8 +97,8 @@ describe("agentRouter", () => {
 
   it("falls back to first role on LLM error", async () => {
     vi.mocked(LLMManager.getInstance).mockReturnValue({
-      getProvider: vi.fn(() => null), // provider not found
-    } as any);
+      getProvider: vi.fn(() => null),
+    } as unknown as LLMManager);
 
     const result = await routeToAgent(mockRoles, mockMemory, "test");
     expect(result.name).toBe("Архитектор");

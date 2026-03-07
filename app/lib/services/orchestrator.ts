@@ -131,11 +131,17 @@ export type OrchestratorPlan = {
   skipReasons: Record<string, string>;
 };
 
+export type OrchestratorLLMOptions = {
+  providerId?: string;
+  modelName?: string;
+};
+
 export async function planPipeline(
   memory: AgentMemory,
   userMessage: string,
+  llmOptions?: OrchestratorLLMOptions,
 ): Promise<OrchestratorPlan> {
-  const activeRoles = getAllRoles(true);
+  const activeRoles = await getAllRoles(true);
   if (activeRoles.length === 0) {
     return { steps: [], reasoning: "Нет активных ролей", skipReasons: {} };
   }
@@ -150,15 +156,18 @@ export async function planPipeline(
   }
 
   // Existing session → ask LLM
+  const providerId = llmOptions?.providerId ?? ORCHESTRATOR_PROVIDER;
+  const modelName = llmOptions?.modelName ?? ORCHESTRATOR_MODEL;
+
   try {
     const manager = LLMManager.getInstance(process.env as Record<string, string>);
-    const provider = manager.getProvider(ORCHESTRATOR_PROVIDER);
+    const provider = manager.getProvider(providerId);
     if (!provider) {
       return { steps: activeRoles, reasoning: "Провайдер оркестратора недоступен — полная цепочка", skipReasons: {} };
     }
 
     const model = provider.getModelInstance({
-      model: ORCHESTRATOR_MODEL,
+      model: modelName,
       serverEnv: process.env as Record<string, string>,
     });
 
@@ -183,7 +192,9 @@ ${lastSteps}
 Запрос: "${userMessage}"
 
 Правила:
+- анализ/уточнение требований → Аналитик
 - структура/дизайн → Архитектор + Кодер
+- визуальный стиль/цвета/типографика → Дизайнер + Кодер
 - текст/контент → Копирайтер + Кодер
 - баг/исправление кода → только Кодер
 - проверка → только Тестировщик
@@ -222,10 +233,10 @@ JSON (без пояснений):
       // Safety: always include Кодер if content-producing steps present
       const hasCoder = steps.some((r) => r.id === "role_coder");
       const hasContentSteps = steps.some((r) =>
-        r.id === "role_architect" || r.id === "role_copywriter",
+        r.id === "role_architect" || r.id === "role_copywriter" || r.id === "role_designer",
       );
       if (hasContentSteps && !hasCoder) {
-        const coder = getRoleById("role_coder");
+        const coder = await getRoleById("role_coder");
         if (coder?.isActive) {
           steps.push(coder);
           steps.sort((a, b) => a.order - b.order);
@@ -260,8 +271,9 @@ export async function* executeOrchestrated(
   localContext: string,
   projectType: string,
   abortSignal?: AbortSignal,
+  llmOptions?: OrchestratorLLMOptions,
 ): AsyncGenerator<PipelineEvent> {
-  const plan = await planPipeline(memory, userMessage);
+  const plan = await planPipeline(memory, userMessage, llmOptions);
 
   if (plan.steps.length === 0) {
     yield { type: "error", message: "Нет активных ролей для выполнения." };
@@ -328,8 +340,8 @@ export async function* executeOrchestrated(
       if (testerFoundCriticalErrors(stepOutput)) {
         fixCycleCount++;
 
-        const coder = getRoleById("role_coder");
-        const tester = getRoleById("role_tester");
+        const coder = await getRoleById("role_coder");
+        const tester = await getRoleById("role_tester");
 
         if (coder?.isActive && tester?.isActive) {
           yield {

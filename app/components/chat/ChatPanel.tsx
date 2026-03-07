@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "~/lib/stores/chatStore";
 import { useAgentStore } from "~/lib/stores/agentStore";
 import { useProjectStore } from "~/lib/stores/projectStore";
@@ -15,6 +15,7 @@ import { LocalContextInput } from "./LocalContextInput";
 import { AgentStatusIndicator } from "./AgentStatusIndicator";
 import { ChainProgress } from "./ChainProgress";
 import { GlowText } from "~/components/ui/GlowText";
+import { NeonButton } from "~/components/ui/NeonButton";
 import { useT } from "~/lib/utils/i18n";
 
 export function ChatPanel() {
@@ -27,8 +28,12 @@ export function ChatPanel() {
 
   const wasStreamingRef = useRef(false);
   const lastPromptRef = useRef("");
+  const [seedLoading, setSeedLoading] = useState(false);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   const t = useT();
+  const settings = useSettingsStore();
+  const { selection: agentSelection } = useAgentStore();
 
   // Check availability: need at least one online provider AND at least one role
   const agents = useAgentStore((s) => s.agents);
@@ -40,6 +45,49 @@ export function ChatPanel() {
   useEffect(() => {
     useRoleStore.getState().loadRoles();
   }, []);
+
+  const handleSeedRoles = useCallback(async () => {
+    setSeedLoading(true);
+    setSeedError(null);
+    try {
+      const providerId = agentSelection.agentId || settings.defaultAgentId;
+      const modelName = agentSelection.modelId || settings.defaultModelId;
+      const body: Record<string, string> = {};
+      if (providerId && modelName) {
+        body.providerId = providerId;
+        body.modelName = modelName;
+      }
+      const res = await fetch("/api/roles/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
+      });
+      const text = await res.text();
+      let data: { ok?: boolean; message?: string; error?: string };
+      try {
+        data = JSON.parse(text) as { ok?: boolean; message?: string; error?: string };
+      } catch {
+        data = { error: text?.slice(0, 200) || "Ответ сервера не в формате JSON" };
+      }
+      if (res.ok && data.ok) {
+        await useRoleStore.getState().loadRoles();
+      } else {
+        const msg = data.message ?? data.error ?? "Не удалось создать роли";
+        setSeedError(res.status === 409 ? `${msg} Перейдите в Настройки → Агенты для замены.` : msg);
+      }
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.name === "AbortError"
+          ? "Превышено время ожидания. Проверьте подключение к Appwrite."
+          : e instanceof Error
+            ? e.message
+            : "Ошибка при создании ролей";
+      setSeedError(msg);
+    } finally {
+      setSeedLoading(false);
+    }
+  }, [agentSelection.agentId, agentSelection.modelId, settings.defaultAgentId, settings.defaultModelId]);
 
   // Auto-save version when streaming completes
   useEffect(() => {
@@ -69,7 +117,7 @@ export function ChatPanel() {
             prompt: lastPromptRef.current,
             model: lastAssistant?.model ?? "",
             agentId: lastAssistant?.agentId ?? "",
-            temperature: 0.3,
+            temperature: useSettingsStore.getState().defaultTemperature,
           });
         }
         useChatStore.getState().saveProjectChat(project.id);
@@ -135,6 +183,20 @@ export function ChatPanel() {
                     ? t("chat.no_agents")
                     : "Роли агентов не загружены. Проверьте настройки."}
                 </p>
+                {hasOnlineProvider && !hasRoles && (
+                  <div className="mt-3 flex flex-col gap-2">
+                    <NeonButton
+                      onClick={handleSeedRoles}
+                      disabled={seedLoading}
+                      size="sm"
+                    >
+                      {seedLoading ? "Создание…" : "Создать роли по умолчанию"}
+                    </NeonButton>
+                    {seedError && (
+                      <p className="text-red-400 text-xs">{seedError}</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

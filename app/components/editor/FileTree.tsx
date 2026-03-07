@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { cn } from "~/lib/utils/cn";
+import { useT } from "~/lib/utils/i18n";
 
 interface FileTreeProps {
   files: Record<string, string>;
@@ -35,6 +36,7 @@ export function FileTree({
   onDeleteFile,
   onRenameFile,
 }: FileTreeProps) {
+  const t = useT();
   const paths = Object.keys(files).sort();
   const [isCreating, setIsCreating] = useState(false);
   const [newFileName, setNewFileName] = useState("");
@@ -63,12 +65,12 @@ export function FileTree({
   return (
     <div className="py-1 relative">
       <div className="flex items-center justify-between px-3 py-1">
-        <span className="text-[9px] font-heading uppercase tracking-[0.15em] text-text-muted">Files</span>
+        <span className="text-[9px] font-heading uppercase tracking-[0.15em] text-text-muted">{t("file.title")}</span>
         {onCreateFile && (
           <button
             onClick={() => setIsCreating(true)}
             className="text-[10px] text-text-muted hover:text-gold-pure transition-colors"
-            title="New file"
+            title={t("file.new")}
           >
             +
           </button>
@@ -94,7 +96,7 @@ export function FileTree({
 
       {paths.length === 0 && !isCreating && (
         <div className="p-3 text-text-muted text-xs text-center">
-          No files generated yet
+          {t("file.no_files")}
         </div>
       )}
 
@@ -161,7 +163,7 @@ export function FileTree({
                   }}
                   className="w-full text-left px-3 py-1 text-[10px] text-text-secondary hover:bg-surface hover:text-text-primary transition-colors"
                 >
-                  Rename
+                  {t("file.rename")}
                 </button>
               )}
               {onDeleteFile && (
@@ -172,7 +174,7 @@ export function FileTree({
                   }}
                   className="w-full text-left px-3 py-1 text-[10px] text-red-400 hover:bg-red-400/10 transition-colors"
                 >
-                  Delete
+                  {t("common.delete")}
                 </button>
               )}
             </div>

@@ -16,6 +16,8 @@ const ExecuteSchema = z.object({
   message: z.string().min(1).max(128_000),
   localContext: z.string().max(10_000).default(""),
   projectType: z.enum(["react", "html", "vue"]).default("react"),
+  orchestratorProviderId: z.string().optional(),
+  orchestratorModelName: z.string().optional(),
 });
 
 function sseEncode(event: PipelineEvent): string {
@@ -34,7 +36,16 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ error: detail }, { status: 400 });
   }
 
-  const { projectId, roleId, forceRole, message, localContext, projectType } = parsed.data;
+  const {
+    projectId,
+    roleId,
+    forceRole,
+    message,
+    localContext,
+    projectType,
+    orchestratorProviderId,
+    orchestratorModelName,
+  } = parsed.data;
   const sessionId = parsed.data.sessionId ?? crypto.randomUUID();
 
   const memory = getOrCreateSession(sessionId, projectId);
@@ -46,7 +57,14 @@ export async function action({ request }: { request: Request }) {
       async start(controller) {
         try {
           controller.enqueue(encoder.encode(sseEncode({ type: "session_init", sessionId })));
-          const gen = executeOrchestrated(memory, message, localContext, projectType, request.signal);
+          const gen = executeOrchestrated(
+            memory,
+            message,
+            localContext,
+            projectType,
+            request.signal,
+            { providerId: orchestratorProviderId, modelName: orchestratorModelName },
+          );
           for await (const event of gen) {
             controller.enqueue(encoder.encode(sseEncode(event)));
           }
@@ -81,7 +99,13 @@ export async function action({ request }: { request: Request }) {
         controller.enqueue(encoder.encode(sseEncode({ type: "session_init", sessionId })));
 
         // Select role
-        const { role, selectedBy } = await selectRole(sessionId, roleId, message, forceRole);
+        const { role, selectedBy } = await selectRole(
+          sessionId,
+          roleId,
+          message,
+          forceRole,
+          { providerId: orchestratorProviderId, modelName: orchestratorModelName },
+        );
 
         controller.enqueue(
           encoder.encode(

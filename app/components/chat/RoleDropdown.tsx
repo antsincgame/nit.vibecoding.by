@@ -1,32 +1,35 @@
 import { useRoleStore } from "~/lib/stores/roleStore";
 import { CHAIN_ROLE_ID, AUTO_ROLE_ID } from "@shared/types/agentRole";
 import { cn } from "~/lib/utils/cn";
+import { useT } from "~/lib/utils/i18n";
 
 export function RoleDropdown() {
+  const t = useT();
   const { roles, selection, pipelineSessionId, pipelineStatus, setRoleSelection } = useRoleStore();
 
-  // New session → lock to chain (Architect is always first step in chain)
   const isNewSession = !pipelineSessionId;
   const isRunning = pipelineStatus === "running" || pipelineStatus === "chain_running";
 
-  const effectiveRoleId = isNewSession ? CHAIN_ROLE_ID : selection.roleId;
-
   return (
     <div className="flex flex-col gap-0.5">
-      <label className="text-[8px] font-heading uppercase tracking-[0.2em] text-text-muted">
-        Роль
+      <label
+        htmlFor="role-dropdown"
+        className="text-[8px] font-heading uppercase tracking-[0.2em] text-text-muted cursor-pointer"
+      >
+        {t("role.label")}
       </label>
       <select
-        value={effectiveRoleId}
+        id="role-dropdown"
+        value={selection.roleId}
         onChange={(e) => setRoleSelection(e.target.value)}
-        disabled={isNewSession || isRunning}
+        disabled={isRunning}
         className={cn(
           "bg-deep-space border border-border-subtle rounded px-2 py-1 text-[11px] text-text-primary outline-none cursor-pointer",
           "focus:border-gold-pure/40",
-          (isNewSession || isRunning) && "opacity-50 cursor-not-allowed",
+          isRunning && "opacity-50 cursor-not-allowed",
         )}
       >
-        {roles.length === 0 && <option value="">Нет ролей</option>}
+        {roles.length === 0 && <option value="">{t("role.no_roles")}</option>}
 
         {roles.map((role) => (
           <option key={role.id} value={role.id}>
@@ -35,12 +38,12 @@ export function RoleDropdown() {
         ))}
 
         <option disabled>──────</option>
-        <option value={AUTO_ROLE_ID}>🤖 Авто (LLM-роутер)</option>
-        <option value={CHAIN_ROLE_ID}>⚡ Цепочка (все по порядку)</option>
+        <option value={AUTO_ROLE_ID}>{t("role.auto")}</option>
+        <option value={CHAIN_ROLE_ID}>{t("role.chain")}</option>
       </select>
       {isNewSession && (
         <span className="text-[9px] text-text-muted">
-          Первый запрос запускает полную цепочку
+          {t("role.first_request_chain")}
         </span>
       )}
     </div>

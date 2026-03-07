@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { cn } from "~/lib/utils/cn";
 import type { ProjectVersion } from "@shared/types/project";
 import { useProjectStore } from "~/lib/stores/projectStore";
+import { useT } from "~/lib/utils/i18n";
 
 interface VersionHistoryProps {
   versions: ProjectVersion[];
@@ -9,12 +10,13 @@ interface VersionHistoryProps {
 }
 
 export function VersionHistory({ versions, onRestore }: VersionHistoryProps) {
+  const t = useT();
   const { currentVersion } = useProjectStore();
 
   if (versions.length === 0) {
     return (
       <div className="p-3 text-text-muted text-[10px] text-center">
-        No versions yet
+        {t("version.no_versions")}
       </div>
     );
   }
@@ -41,7 +43,7 @@ export function VersionHistory({ versions, onRestore }: VersionHistoryProps) {
                 v{version.versionNumber}
               </span>
               <span className="text-[9px] text-text-muted">
-                {fileCount} files
+                {fileCount} {t("version.files")}
               </span>
             </div>
             <p className="text-[9px] text-text-muted mt-0.5 truncate">

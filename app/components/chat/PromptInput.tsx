@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, type KeyboardEvent } from "react";
 import { NeonButton } from "~/components/ui/NeonButton";
 import { cn } from "~/lib/utils/cn";
+import { useT } from "~/lib/utils/i18n";
 
 interface PromptInputProps {
   onSubmit: (prompt: string) => void;
@@ -10,6 +11,7 @@ interface PromptInputProps {
 }
 
 export function PromptInput({ onSubmit, onStop, isStreaming, disabled }: PromptInputProps) {
+  const t = useT();
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -47,19 +49,19 @@ export function PromptInput({ onSubmit, onStop, isStreaming, disabled }: PromptI
           "w-full bg-transparent border-none outline-none resize-none",
           "text-text-primary text-sm font-body placeholder:text-text-muted",
         )}
-        placeholder="Опишите, что нужно создать... (Ctrl+Enter для отправки)"
+        placeholder={t("chat.placeholder")}
         disabled={isStreaming}
       />
 
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border-subtle">
         <span className="text-[10px] text-text-muted font-mono">
-          {value.length > 0 && `${value.length} символов`}
+          {value.length > 0 && `${value.length} ${t("chat.chars")}`}
         </span>
 
         <div className="flex gap-2">
           {isStreaming ? (
             <NeonButton variant="danger" size="sm" onClick={onStop}>
-              Stop
+              {t("chat.stop")}
             </NeonButton>
           ) : (
             <NeonButton
@@ -68,7 +70,7 @@ export function PromptInput({ onSubmit, onStop, isStreaming, disabled }: PromptI
               onClick={handleSubmit}
               disabled={!value.trim() || disabled}
             >
-              Generate
+              {t("chat.generate")}
             </NeonButton>
           )}
         </div>
